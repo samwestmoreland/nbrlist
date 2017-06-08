@@ -185,7 +185,7 @@ int main (int argc, char *argv[]) {
                     && tmp.element == "Nd")
                 {
                     tmp.mat = 2;
-                    tmp.element = "K";
+                    tmp.element = "Nd";
                 }
 
                 std::cout << tmp.mat << std::endl;
@@ -235,7 +235,7 @@ int main (int argc, char *argv[]) {
         super.push_back(tmp);
     }
 
-    // open file for rasmol output
+    /* open file for rasmol output */
     std::ofstream sxyz ("super.xyz");
 
     // if file open
@@ -244,14 +244,13 @@ int main (int argc, char *argv[]) {
         sxyz << super.size() << "\n\n";
 
         for (int i=0; i<super.size(); i++)
-
-        sxyz << super[i].element << "\t"
-        << super[i].pos.x   << "\t"
-        << super[i].pos.y   << "\t"
-        << super[i].pos.z   << "\t"
-        << super[i].uc.x    << "\t"
-        << super[i].uc.y    << "\t"
-        << super[i].uc.z    << "\n";
+            sxyz << super[i].element << "\t"
+            << super[i].pos.x   << "\t"
+            << super[i].pos.y   << "\t"
+            << super[i].pos.z   << "\t"
+            << super[i].uc.x    << "\t"
+            << super[i].uc.y    << "\t"
+            << super[i].uc.z    << "\n";
 
         sxyz.close();
     }
@@ -266,7 +265,7 @@ int main (int argc, char *argv[]) {
     std::vector<int_t> ucints;
 
     // cut off radius in angstroms
-    double rcut = 5.0;
+    double rcut = 3.0;
 
     // central cell location
     int start = (super.size()-unitcell.size())/2;
@@ -280,10 +279,10 @@ int main (int argc, char *argv[]) {
         // loop through super cell (looking for atom j)
         for (int j=0; j<super.size(); ++j)
         {
-            // calculate interatomic distance
+            /* calculate interatomic distance */
             double rij = calc_rij(super[i].pos, super[j].pos);
 
-            // if distance less than rcut and not same atom
+            /* if distance less than rcut and not same atom */
             if (rij<rcut && rij!=0)
             {
                 // create a pair
