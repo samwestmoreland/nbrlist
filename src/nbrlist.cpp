@@ -162,6 +162,8 @@ int main (int argc, char *argv[]) {
     ucd.y = a;
     ucd.z = c;
 
+    std::vector<int> material_count(6, 0);
+
     /* read coordinates into array */
     if (uccoords)
     {
@@ -178,31 +180,70 @@ int main (int argc, char *argv[]) {
                 // scale coordinates
                 tmp.pos = tmp.pos * ucd;
 
-                if (tmp.element=="Fe") tmp.mat = 0;
-                else if (tmp.element=="Nd") tmp.mat = 1;
-
-                if (tmp.pos.z < -0.0 && tmp.pos.z > -6.0
-                    && tmp.element == "Nd")
+                /* bottom Nd2Fe14B layer */
+                if (tmp.pos.z < 0.0)
                 {
-                    tmp.mat = 2;
-                    tmp.element = "Nd";
+                    if (tmp.element == "Nd")
+                    {
+                        if (!(tmp.pos.z < -0.0 && tmp.pos.z > -6.0))
+                        {
+                            tmp.mat = 0;
+                            ++material_count.at(0);
+                        }
+                        else
+                        {
+                            tmp.mat = 5; /* first Nd plane */
+                            ++material_count.at(5);
+                        }
+                    }
+                    else if (tmp.element == "Fe")
+                    {
+                        tmp.mat = 1;
+                        ++material_count.at(1);
+                    }
                 }
 
-                std::cout << tmp.mat << std::endl;
+                /* bcc Fe layer */
+                if (tmp.pos.z > 0.0 && tmp.pos.z <= 109.0)
+                {
+                    tmp.mat = 2;
+                    ++material_count.at(2);
+                }
 
-                unitcell.push_back(tmp);
+                /* top Nd2Fe14B layer */
+                if (tmp.pos.z > 109.0)
+                {
+                    if (tmp.element == "Nd")
+                    {
+                        tmp.mat = 3;
+                        ++material_count.at(3);
+                    }
+
+                    else if (tmp.element == "Fe")
+                    {
+                        tmp.mat = 4;
+                        ++material_count.at(4);
+                    }
+                }
+unitcell.push_back(tmp);
                 ++aid_counter;
             }
         }
+
+        std::cout << "coordinates read.\n\n";
     }
 
     else std::cerr << "no input file found\n";
 
-    std::cout << "number of atoms in unitcell: " << unitcell.size() << std::endl;
+    for (int i = 0; i < material_count.size(); ++i)
+        std::cout << "atoms of material " << i << ": "
+                  << material_count.at(i) << std::endl;
+
+    std::cout << "\nnumber of atoms in unitcell: " << unitcell.size() << std::endl;
 
     /*
-    * replicate unitcell to make supercell
-    */
+     * replicate unitcell to make supercell
+     */
 
     std::vector<atom_t> super;
     super.reserve(unitcell.size()*3*3*3);
@@ -253,9 +294,10 @@ int main (int argc, char *argv[]) {
             << super[i].uc.z    << "\n";
 
         sxyz.close();
+        std::cout << "super.xyz file generated.\n";
     }
 
-    else std::cout << "*** could not open super.xyz for output ***" << std::endl;
+    else std::cerr << "*** could not open super.xyz for output ***" << std::endl;
     std::cout << "number of atoms in supercell: " << super.size() << std::endl;
 
     /*
@@ -538,10 +580,8 @@ int main (int argc, char *argv[]) {
 
                 // else it is within bounds
                 // so simply extract j.gid
-                else
-                {
-                    tmp.j.gid = system[ucx][ucy][ucz][ucints[p].j.aid].gid;
-                }
+                else tmp.j.gid = system[ucx][ucy][ucz][ucints[p].j.aid].gid;
+
                 /*
                 // if at top afm boundary
                 // switch sign of exchange
@@ -555,6 +595,7 @@ int main (int argc, char *argv[]) {
             if (tmp.dz == 1) tmp.exchange *= -100;
         }
         */
+
         interactions.push_back(tmp);
 
         // increment interaction id
