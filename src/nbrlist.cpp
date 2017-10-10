@@ -1,5 +1,3 @@
-// scaling of m for generic bcc system
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -10,13 +8,15 @@
 #include "../hdr/classes.hpp"
 
 /* function prototypes */
-double calc_rij(vec_t i, vec_t j);     // distance calculation
-double calc_jij(std::string i_type, std::string j_type, double rij);
-int initialise_material(std::string material);
-int initialise_data_structures();
+double calculate_rij(vec_t i, vec_t j);     // distance calculation
+double calculate_jij_ndfeb(std::string i_type, std::string j_type, double rij);
+double calculate_jij_smfe12(std::string i_type, std::string j_type, double rij, double fe_fe_frac, double r_fe_frac);
+double calculate_jij_bccfe(double rij);
+int initialise_material(std::string material, double zr_content, int config);
 void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
 material_t determine_material_id(material_t material);
-int calculate_interactions();
+int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac);
+vec_t calculate_lattice_parameters_from_zr_content(double zr_content);
 
 /* arrays */
 std::vector<atom_t> unitcell;
@@ -35,24 +35,69 @@ int main (int argc, char *argv[])
       * ndfe12
       * bccfe
       * smfe12
+      * smzrfe12
    */
 
    char * material = argv[1];
-   std::string str(material);
-   initialise_material(material);
+   std::string material_str(material);
 
-   std::cout << "number of materials: " << materials.size() << std::endl;
+   if ((material_str != "smzrfe12") && (argc != 4))
+   {
+       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange]\n";
+       exit(EXIT_FAILURE);
+   }
 
-   calculate_interactions();
+   else if ((material_str == "smzrfe12") && (argc != 6))
+   {
+       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange, zr content, config (1-8)]\n";
+       exit(EXIT_FAILURE);
+   }
+
+   double zr_content = 0;
+   int config = 0;
+
+   if (material_str == "smzrfe12")
+   {
+       /* get zr content from command line input */
+       zr_content = atof(argv[4]);
+       config = atoi(argv[5]);
+   }
+
+   int exchange_fn = initialise_material(material_str, zr_content, config);
+
+   array_to_rasmol(unitcell, "unitcell");
+
+   std::cout << "number of materials: " << materials.size() << "\n\n\t";
+
+   /* output names of materials */
+   for (int i=0; i<materials.size(); ++i)
+       std::cout << materials[i].name << "\t" << materials[i].id << "\n\t";
+   std::cout << std::endl;
+
+   double fe_fe_frac = atof(argv[2]);
+   double r_fe_frac = atof(argv[3]);
+
+   calculate_interactions(exchange_fn, fe_fe_frac, r_fe_frac);
 
 return 0;
 
 }
 
-int initialise_material(std::string material)
+int initialise_material(std::string material, double zr_content, int config)
 {
-   std::cout << "initialising material " << material << std::endl;
-   std::string filename = "coordinates/" + material + ".coords";
+   std::cout << "initialising material " << material;
+   if (material == "smzrfe12")
+   {
+       std::cout << " with configuration " << config << std::endl;
+   }
+   else std::cout << std::endl;
+
+   std::string filename;
+   std::string config_str = std::to_string(config);
+
+   if (material == "smzrfe12")
+       filename = "coordinates/smzrfe12/" + material + config_str + ".coords";
+   else filename = "coordinates/" + material + ".coords";
 
    std::ifstream infile (filename.c_str());
 
@@ -64,11 +109,14 @@ int initialise_material(std::string material)
       std::exit(EXIT_FAILURE);
    }
 
+   int exchange_fn = 0;
+
    if (material == "ndfeb")
    {
        ucd.x = 8.8;
        ucd.y = 8.8;
        ucd.z = 12.2;
+       exchange_fn = 0;
    }
 
    else if (material == "bccfe")
@@ -76,6 +124,22 @@ int initialise_material(std::string material)
        ucd.x = 2.856;
        ucd.y = 2.856;
        ucd.z = 2.856;
+       exchange_fn = 1;
+   }
+
+   else if (material == "smfe12")
+   {
+       ucd.x = 8.497;
+       ucd.y = 8.497;
+       ucd.z = 4.687;
+       exchange_fn = 2;
+   }
+
+   /* lattice parameters vary as a function of Zr content */
+   else if (material == "smzrfe12")
+   {
+       ucd = calculate_lattice_parameters_from_zr_content(zr_content);
+       exchange_fn = 2;
    }
 
    else if (material == "test")
@@ -83,6 +147,7 @@ int initialise_material(std::string material)
        ucd.x = 1;
        ucd.y = 1;
        ucd.z = 1;
+       exchange_fn = 0;
    }
 
    else
@@ -101,7 +166,7 @@ int initialise_material(std::string material)
    int atom_count = 0;
    int material_count = 0;
 
-   std::cout << "\nreading in unit cell coordinates\n";
+   std::cout << "reading in unit cell coordinates\n";
 
    while (infile
       >> temp.element
@@ -156,7 +221,23 @@ int initialise_material(std::string material)
          << "0\t0\n";
    }
 
-   return EXIT_SUCCESS;
+   return exchange_fn;
+}
+
+vec_t calculate_lattice_parameters_from_zr_content(double zr_content)
+{
+    double atom_rad = (zr_content - 8.22624)/(-4.51952);
+    double a = 0.0929088 * atom_rad + 0.830892;
+    double c = -0.00593675 * zr_content + 1;
+
+    a *= 8.497;
+    c *= 4.687;
+
+    vec_t ucd;
+    ucd.x = a*2;
+    ucd.y = a;
+    ucd.z = c;
+    return ucd;
 }
 
 material_t determine_material_id(material_t in_material)
@@ -221,15 +302,26 @@ void populate_supercell()
         << "atoms in super cell: "
         << supercell.size() << std::endl;
 
-    //    array_to_rasmol(supercell, "supercell");
+        array_to_rasmol(supercell, "supercell");
 
 }
 
-int calculate_interactions()
+int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac)
 {
-    std::cout << "\npopulating super cell\n";
+    std::cout << "populating super cell\n";
 
     populate_supercell();
+
+    std::cout << "calculating interactions\n";
+
+    std::cout
+        << "using exchange function: "
+        << exchange_fn << std::endl;
+
+    if (exchange_fn == 2)
+        std::cout <<
+            "Fe-Fe exchange fraction = " << fe_fe_frac << "\n" <<
+            "R-Fe exchange fraction = " << r_fe_frac << "\n";
 
     /* cut-off radius in angstroms */
     double rcut = 5.0;
@@ -247,7 +339,7 @@ int calculate_interactions()
         for (int j=0; j<supercell.size(); ++j)
         {
             /* calculate interatomic distance */
-            double rij = calc_rij(supercell[i].pos, supercell[j].pos);
+            double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
 
             /* if distance less than rcut and not same atom */
             if (rij < rcut && rij > 1e-30)
@@ -263,7 +355,13 @@ int calculate_interactions()
                 temp.disp = temp.j.uc - temp.i.uc;
 
                 /* calculate exchange energy */
-                temp.exchange = calc_jij(temp.i.element, temp.j.element, rij);
+                if (exchange_fn == 0)
+                    temp.exchange = calculate_jij_ndfeb(temp.i.element, temp.j.element, rij);
+                else if (exchange_fn == 1)
+                    temp.exchange = calculate_jij_bccfe(rij);
+
+                else if (exchange_fn == 2)
+                    temp.exchange = calculate_jij_smfe12(temp.i.element, temp.j.element, rij, fe_fe_frac, r_fe_frac);
 
                 /* put interaction into array */
                 if (temp.exchange!=0)
@@ -311,20 +409,78 @@ void array_to_rasmol(std::vector<atom_t> array, std::string arrayname)
                 << array[i].element << "\t"
                 << array[i].pos.x   << "\t"
                 << array[i].pos.y   << "\t"
-                << array[i].pos.z   << "\t"
-                << array[i].uc.x    << "\t"
-                << array[i].uc.y    << "\t"
-                << array[i].uc.z    << "\n";
+                << array[i].pos.z   << "\n";
 
         rasmol.close();
         std::cout << filename << " file generated.\n";
     }
 }
 
-/* exchange function */
-double calc_jij (std::string i_type, std::string j_type, double rij)
+/* (exchange_fn = 0) */
+double calculate_jij_bccfe(double rij)
 {
+    /*
+     * parameters from Pajda (2001) ab-initio data
+     */
 
+    /* Fe-Fe */
+    double a = 60.5033;
+    double b = 0.862717;
+    double c = 1e-21;
+    return c*(a/(rij*rij*rij)-b);
+}
+
+/* smfe12 exchange function  (exchange_fn = 2) */
+double calculate_jij_smfe12 (
+        std::string i_type,
+        std::string j_type,
+        double rij,
+        double fe_fe_frac,
+        double r_fe_frac
+        )
+{
+    double a = 60.5033;
+    double b = 0.862717;
+    double c = 1e-21;
+
+    /* Sm-Sm */
+    if(i_type=="Sm" && j_type=="Sm"){
+        return 0.0;
+    }
+
+    /* Sm-Fe */
+    if (
+            (i_type=="Fe8i" && j_type=="Sm") ||
+            (i_type=="Sm" && j_type=="Fe8i") ||
+            (i_type=="Fe8j" && j_type=="Sm") ||
+            (i_type=="Sm" && j_type=="Fe8j") ||
+            (i_type=="Fe8f" && j_type=="Sm") ||
+            (i_type=="Sm" && j_type=="Fe8f") )
+    {
+        if (rij<=4.0) return r_fe_frac * c*(a/(rij*rij*rij)-b);       // ndfeb
+        else return 0.0;
+    }
+
+    // Fe-Fe (cutoff at r = 5.74A)
+    else if (
+            (i_type=="Fe8i" && j_type=="Fe8i") ||
+            (i_type=="Fe8i" && j_type=="Fe8j") ||
+            (i_type=="Fe8i" && j_type=="Fe8f") ||
+            (i_type=="Fe8j" && j_type=="Fe8i") ||
+            (i_type=="Fe8j" && j_type=="Fe8j") ||
+            (i_type=="Fe8j" && j_type=="Fe8f") ||
+            (i_type=="Fe8f" && j_type=="Fe8i") ||
+            (i_type=="Fe8f" && j_type=="Fe8j") ||
+            (i_type=="Fe8f" && j_type=="Fe8f"))
+
+            return fe_fe_frac * c*(a/(rij*rij*rij)-b);
+
+    else return 0.0;
+}
+
+/* richard's ndfeb exchange function (exchange_fn = 0) */
+double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij)
+{
     double A=36.9434;
     double B=1.25094;
     double C=-0.229572;
@@ -365,7 +521,7 @@ double calc_jij (std::string i_type, std::string j_type, double rij)
 }
 
 // function to calculate distance
-double calc_rij (vec_t i, vec_t j)
+double calculate_rij (vec_t i, vec_t j)
 {
     vec_t d = j-i;
     double distance = sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
