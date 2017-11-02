@@ -15,17 +15,17 @@ double calculate_jij_bccfe(double rij);
 int initialise_material(std::string material, double zr_content, int config);
 void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
 material_t determine_material_id(material_t material);
-int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac);
+int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor);
 vec_t calculate_lattice_parameters_from_zr_content(double zr_content);
 int output_materials(std::vector<material_t>& materials);
-int generate_large_system(  std::vector<int_t>& uc_interactions,
-                            std::vector<atom_t>& unitcell,
-                            std::vector < std::vector < std::vector < std::vector <atom_t> > > >& system, vec_t ucd,
-                            int n_tracked_cells,
-                            int n_materials,
-                            int system_dimension);
+int generate_large_system(std::vector<int_t>& uc_interactions,
+                          std::vector<atom_t>& unitcell,
+                          std::vector < std::vector < std::vector < std::vector <atom_t> > > >& system, vec_t ucd,
+                          int n_tracked_cells,
+                          int n_materials,
+                          int system_dimension);
 
-/* arrays (global declaration) */
+/* arrays (global) */
 std::vector<atom_t> unitcell;
 std::vector<atom_t> supercell;
 std::vector<int_t> uc_interactions;
@@ -45,45 +45,84 @@ int main (int argc, char *argv[])
       * smzrfe12
    */
 
-   char * material = argv[1];
-   double fe_fe_frac = atof(argv[2]);
-   double r_fe_frac = atof(argv[3]);
+   std::string material = argv[1];
+   if (material != "bccfe" &&
+         material != "ndfeb" &&
+         material != "ndfe12" &&
+         material != "smfe12" &&
+         material != "smzrfe12")
+   {
+      std::cout << "error! material not recognised\n";
+      std::exit(EXIT_FAILURE);
+   }
 
-   int system_dimension = atoi(argv[4]);
-   int n_tracked_cells = atoi(argv[argc-1]);
+   bool tracking;
+   if (argc > 2)
+   {
+      std::string argv2 = argv[2];
+      if (argv2 == "tracking")
+         tracking = true;
+      else tracking = false;
+   }
 
-   std::cout << "user inputted parameters\n";
-   std::cout << "TM-TM factor: " << fe_fe_frac << std::endl;
-   std::cout << "R-TM factor:  " << r_fe_frac << std::endl;
-   std::cout << "large system dimension: " << system_dimension << std::endl;
-   std::cout << "n_tracked:    " << n_tracked_cells << std::endl;
-   std::cout << std::endl;
+   /* *************************
+    * **** read parameters ****
+    * *************************/
 
-   std::string material_str(material);
+   double tt_factor = 0;
+   double rt_factor = 0;
 
-//   if ((material_str != "smzrfe12") && (argc != 4))
-//   {
-//       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange]\n";
-//       exit(EXIT_FAILURE);
-//   }
+   if (material != "bccfe")
+   {
+       std::cout << "input exchange: tt, rt\n";
+       std::cin >> tt_factor >> rt_factor;
+   }
 
-//    else if ((material_str == "smzrfe12") && (argc != 6))
-//    {
-//        std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange, zr content, config (1-8)]\n";
-//        exit(EXIT_FAILURE);
-//    }
+   int system_dimension = 0;
+   int n_tracked_cells = 0;
+
+   if (tracking)
+   {
+       std::cout << "input tracking parameters: system dimension, no. of tracked cells\n";
+       std::cin >> system_dimension >> n_tracked_cells;
+   }
 
    double zr_content = 0;
    int config = 0;
 
-   if (material_str == "smzrfe12")
+   if (material == "smzrfe12")
    {
-       /* get zr content from command line input */
-       zr_content = atof(argv[4]);
-       config = atoi(argv[5]);
+       std::cout << "input Zr parameters: zr_content (x), unit cell configuration\n";
+       std::cin >> zr_content >> config;
    }
 
-   int exchange_fn = initialise_material(material_str, zr_content, config);
+   /* ************************
+    * *** print parameters ***
+    * ************************/
+
+   std::cout << "\nuser inputted parameters\n";
+   std::cout << "material: " << material << std::endl;
+   if (material != "bccfe")
+   {
+       std::cout << "T-T exchange factor: " << tt_factor << std::endl;
+       std::cout << "R-T exchange factor: " << rt_factor << std::endl;
+   }
+
+   if (tracking)
+   {
+       std::cout << "tracking system dimension: " << system_dimension << std::endl;
+       std::cout << "no. of tracked cells: " << n_tracked_cells << std::endl;
+   }
+
+   if (material == "smzrfe12")
+   {
+       std::cout << "Zr content (x): " << zr_content << std::endl;
+       std::cout << "unit cell configuration: " << config << std::endl;
+   }
+
+   std::cout << std::endl;
+
+   int exchange_fn = initialise_material(material, zr_content, config);
 
    array_to_rasmol(unitcell, "unitcell");
 
@@ -93,7 +132,7 @@ int main (int argc, char *argv[])
    output_materials(materials);
 
    /* this function generates the supercell and fills the interactions array */
-   calculate_interactions(exchange_fn, fe_fe_frac, r_fe_frac);
+   calculate_interactions(exchange_fn, tt_factor, rt_factor);
 
    /**************************************/
    /*** calculate species interactions ***/
@@ -139,7 +178,10 @@ int main (int argc, char *argv[])
    /* array to hold atoms in large system */
    std::vector < std::vector < std::vector < std::vector <atom_t> > > > system;
 
-   generate_large_system(uc_interactions, unitcell, system, ucd, n_tracked_cells, materials.size(), system_dimension);
+   if (tracking)
+   {
+      generate_large_system(uc_interactions, unitcell, system, ucd, n_tracked_cells, materials.size(), system_dimension);
+   }
 
    return 0;
 
@@ -435,21 +477,21 @@ int initialise_material(std::string material, double zr_content, int config)
       std::exit(EXIT_FAILURE);
    }
 
-   int exchange_fn = 0;
+   int exchange_fn;
 
-   if (material == "ndfeb")
-   {
-       ucd.x = 8.8;
-       ucd.y = 8.8;
-       ucd.z = 12.2;
-       exchange_fn = 0;
-   }
-
-   else if (material == "bccfe")
+   if (material == "bccfe")
    {
        ucd.x = 2.856;
        ucd.y = 2.856;
        ucd.z = 2.856;
+       exchange_fn = 0;
+   }
+
+   else if (material == "ndfeb")
+   {
+       ucd.x = 8.8;
+       ucd.y = 8.8;
+       ucd.z = 12.2;
        exchange_fn = 1;
    }
 
@@ -750,8 +792,8 @@ double calculate_jij_bccfe(double rij)
      */
 
     /* Fe-Fe */
-    double a = 60.5033;
-    double b = 0.862717;
+    double a = 121.00658;
+    double b = 1.72543313196278;
     double c = 1e-21;
     return c*(a/(rij*rij*rij)-b);
 }

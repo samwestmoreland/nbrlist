@@ -1,0 +1,5 @@
+nbrlist
+*.ucf
+coordinates/
+*.xyz
+*.mat
