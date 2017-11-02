@@ -17,8 +17,15 @@ void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
 material_t determine_material_id(material_t material);
 int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac);
 vec_t calculate_lattice_parameters_from_zr_content(double zr_content);
+int output_materials(std::vector<material_t>& materials);
+int generate_large_system(  std::vector<int_t>& uc_interactions,
+                            std::vector<atom_t>& unitcell,
+                            std::vector < std::vector < std::vector < std::vector <atom_t> > > >& system, vec_t ucd,
+                            int n_tracked_cells,
+                            int n_materials,
+                            int system_dimension);
 
-/* arrays */
+/* arrays (global declaration) */
 std::vector<atom_t> unitcell;
 std::vector<atom_t> supercell;
 std::vector<int_t> uc_interactions;
@@ -39,19 +46,32 @@ int main (int argc, char *argv[])
    */
 
    char * material = argv[1];
+   double fe_fe_frac = atof(argv[2]);
+   double r_fe_frac = atof(argv[3]);
+
+   int system_dimension = atoi(argv[4]);
+   int n_tracked_cells = atoi(argv[argc-1]);
+
+   std::cout << "user inputted parameters\n";
+   std::cout << "TM-TM factor: " << fe_fe_frac << std::endl;
+   std::cout << "R-TM factor:  " << r_fe_frac << std::endl;
+   std::cout << "large system dimension: " << system_dimension << std::endl;
+   std::cout << "n_tracked:    " << n_tracked_cells << std::endl;
+   std::cout << std::endl;
+
    std::string material_str(material);
 
-   if ((material_str != "smzrfe12") && (argc != 4))
-   {
-       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange]\n";
-       exit(EXIT_FAILURE);
-   }
+//   if ((material_str != "smzrfe12") && (argc != 4))
+//   {
+//       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange]\n";
+//       exit(EXIT_FAILURE);
+//   }
 
-   else if ((material_str == "smzrfe12") && (argc != 6))
-   {
-       std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange, zr content, config (1-8)]\n";
-       exit(EXIT_FAILURE);
-   }
+//    else if ((material_str == "smzrfe12") && (argc != 6))
+//    {
+//        std::cout << "error: expecting arguments [material, fe-fe exchange, r-fe exchange, zr content, config (1-8)]\n";
+//        exit(EXIT_FAILURE);
+//    }
 
    double zr_content = 0;
    int config = 0;
@@ -70,17 +90,323 @@ int main (int argc, char *argv[])
    std::cout << "number of materials: " << materials.size() << "\n\n\t";
 
    /* output names of materials */
-   for (int i=0; i<materials.size(); ++i)
-       std::cout << materials[i].name << "\t" << materials[i].id << "\n\t";
-   std::cout << std::endl;
+   output_materials(materials);
 
-   double fe_fe_frac = atof(argv[2]);
-   double r_fe_frac = atof(argv[3]);
-
+   /* this function generates the supercell and fills the interactions array */
    calculate_interactions(exchange_fn, fe_fe_frac, r_fe_frac);
 
-return 0;
+   /**************************************/
+   /*** calculate species interactions ***/
+   /**************************************/
 
+   std::vector<std::vector<double> > species_interactions;
+   species_interactions.resize(materials.size());
+   for (int i=0; i<materials.size(); ++i) species_interactions[i].resize(materials.size());
+
+   std::vector<std::vector<int> > n_interactions;
+   n_interactions.resize(materials.size());
+   for (int i=0; i<materials.size(); ++i) n_interactions[i].resize(materials.size());
+
+   for (int i=0; i<materials.size(); ++i)
+       for (int j=0; j<materials.size(); ++j)
+       {
+           species_interactions[i][j] = 0;
+           n_interactions[i][j] = 0;
+       }
+
+   for (int i=0; i<uc_interactions.size(); ++i)
+   {
+       int j = uc_interactions[i].j.mat;
+       int k = uc_interactions[i].i.mat;
+
+       species_interactions[j][k] += uc_interactions[i].exchange;
+       n_interactions[j][k] ++;
+   }
+
+   std::cout << "\nexchange matrix (mean)\n";
+
+   for (int i=0; i<materials.size(); ++i)
+   {
+       for (int j=0; j<materials.size(); ++j)
+       {
+           species_interactions[i][j] /= n_interactions[i][j];
+           std::cout << species_interactions[i][j] << "\t";
+       }
+
+       std::cout << std::endl;
+   }
+
+   /* array to hold atoms in large system */
+   std::vector < std::vector < std::vector < std::vector <atom_t> > > > system;
+
+   generate_large_system(uc_interactions, unitcell, system, ucd, n_tracked_cells, materials.size(), system_dimension);
+
+   return 0;
+
+}
+
+/* for now this function will include tracked cell calculation */
+int generate_large_system(  std::vector<int_t>& uc_interactions,
+                            std::vector<atom_t>& unitcell,
+                            std::vector < std::vector < std::vector < std::vector <atom_t> > > >& system,
+                            vec_t ucd,
+                            int n_tracked_cells,
+                            int n_materials,
+                            int system_dimension) {
+
+    /* system dimensions in unit cells */
+    vec_t sd;
+    sd.x = system_dimension;
+    sd.y = system_dimension;
+    sd.z = system_dimension;
+
+    std::cout << "\ndimensions of large system [A]: ("
+    << sd.x * ucd.x << ", "
+    << sd.y * ucd.y << ", "
+    << sd.z * ucd.z << ")\n";
+
+    int ns = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
+    std::cout << "number of atoms in system: " << ns << "\n";
+
+    std::ofstream ucf ("large.ucf");
+
+    /* output coordinates to unit cell file */
+    ucf << "# Unit cell size:\n"
+        <<  sd.x*ucd.x << "\t"
+        <<  sd.y*ucd.y << "\t"
+        <<  sd.z*ucd.z << "\n"
+        << "# Unit cell vectors:\n"
+        << "1.0  0.0  0.0\n"
+        << "0.0  1.0  0.0\n"
+        << "0.0  0.0  1.0\n"
+        << "# Atoms num, id cx cy cz mat lc hc\n"
+        << ns << "\n";
+
+    /* global id counter */
+    int gid_counter = 0;
+    int tracked = 0;
+
+    /* open file for rasmol output of system */
+    std::ofstream sysmol ("system.xyz");
+    sysmol << ns << "\n\n";
+
+    /* resize vectors */
+    system.resize(sd.x);
+    for (int i=0; i<sd.x; i++) {
+       system[i].resize(sd.y);
+       for (int j=0; j<sd.y; j++) {
+          system[i][j].resize(sd.z);
+          for (int k=0; k<sd.z; k++) {
+
+             /* loop through unitcell atoms */
+             for (int atom=0; atom<unitcell.size(); ++atom) {
+
+                 atom_t tmp;
+                 vec_t uc;
+                 uc.x = i;
+                 uc.y = j;
+                 uc.z = k;
+
+                tmp.aid = unitcell[atom].aid;
+                tmp.gid = gid_counter;
+
+                tmp.element = unitcell[atom].element;
+
+                tmp.mat = unitcell[atom].mat;
+
+                /*** cell tracking ***/
+
+
+                if (  (i <  (sd.x+n_tracked_cells)*0.5)
+                   && (i >= (sd.x-n_tracked_cells)*0.5)
+
+                   && (j <  (sd.y+n_tracked_cells)*0.5)
+                   && (j >= (sd.y-n_tracked_cells)*0.5)
+
+                   && (k <  (sd.z+n_tracked_cells)*0.5)
+                   && (k >= (sd.z-n_tracked_cells)*0.5) ) {
+
+                    tmp.mat += n_materials;
+                    tmp.element = 'h';
+                    tracked ++;
+                }
+
+                tmp.pos = unitcell[atom].pos + uc*ucd;
+                gid_counter ++;
+
+                /* output coordinates to file */
+                sysmol  << tmp.element << "\t"
+                        << tmp.pos.x << "\t"
+                        << tmp.pos.y << "\t"
+                        << tmp.pos.z << "\n";
+
+                /* calculate atom coordinates within large system */
+                vec_t sys_co;
+                sys_co.x = tmp.pos.x / double(ucd.x) / double(sd.x);
+                sys_co.y = tmp.pos.y / double(ucd.y) / double(sd.y);
+                sys_co.z = tmp.pos.z / double(ucd.z) / double(sd.z);
+
+                /* output to unit cell file */
+                ucf << tmp.gid << "\t"
+                    << sys_co.x << "\t"
+                    << sys_co.y << "\t"
+                    << sys_co.z << "\t"
+                    << tmp.mat << "\t"
+                    << 0 << "\t"
+                    << 0 << "\n";
+
+                system[i][j][k].push_back(tmp);
+
+             }
+          }
+       }
+    }
+
+    std::cout << "total tracked atoms: " << tracked << "\n";
+    std::cout << "total tracked cells (3D): " << tracked/unitcell.size() << "\n";
+
+    ucf << "# interactions n exctype, id i j dx dy dz Jij\n";
+
+    /*******************************************************/
+    /**  determine interactions for every atom in system  **/
+    /**         using pre-calculated neighbour list       **/
+    /*******************************************************/
+
+    /* initialise array to hold interactions for whole system */
+    std::vector<int_t> interactions;
+
+    /* interaction counter */
+    int int_counter = 0;
+
+    /* loop through every atom in system */
+    for (int i=0; i<sd.x; i++)
+    for (int j=0; j<sd.y; j++)
+    for (int k=0; k<sd.z; k++)
+
+    /* first atom */
+    for (int atom=0; atom<unitcell.size(); atom++)
+
+    /* loop through interaction information */
+    for (int p=0; p<uc_interactions.size(); p++) {
+
+       /* if interaction info refers to correct atom */
+       if (system[i][j][k][atom].aid == uc_interactions[p].i.aid)
+       {
+          int_t tmp;
+
+          tmp.iid = int_counter;
+          tmp.i.gid = system[i][j][k][atom].gid;
+
+          tmp.i.mat = system[i][j][k][atom].mat;
+          tmp.i.element = system[i][j][k][atom].element;
+
+          tmp.j.element = uc_interactions[p].j.element;
+
+          tmp.exchange = uc_interactions[p].exchange;
+
+          /* assume atom j is within system to begin with */
+          tmp.disp.x = 0;
+          tmp.disp.y = 0;
+          tmp.disp.z = 0;
+
+          /* check if atom j is within system boundaries */
+          int ucx = i + uc_interactions[p].disp.x;
+          int ucy = j + uc_interactions[p].disp.y;
+          int ucz = k + uc_interactions[p].disp.z;
+
+          /* if any of these conditions satisfied
+           * then atom is out of bounds
+           */
+
+          if ( ucx < 0 || ucx >= sd.x ||
+               ucy < 0 || ucy >= sd.y ||
+               ucz < 0 || ucz >= sd.z  )
+             {
+
+                /* periodic boundaries conditions */
+                if ( ucx < 0 ) {
+                   ucx += sd.x;
+                   tmp.disp.x = -1;
+
+                   //    // determine mat of atom j
+                   //    if (tmp.i.mat==5)
+                   //    {
+                   //        if (tmp.j.element=="Nd") tmp.j.mat = 5;
+                   //        else tmp.j.mat = 6;
+                   //    }
+                   //
+                   //    else if (tmp.i.mat==6)
+                   //    {
+                   //        if (tmp.j.element=="Fe") tmp.j.mat = 6;
+                   //        else tmp.j.mat = 5;
+                   //    }
+
+                }
+
+                if ( ucy < 0 ) {
+                   ucy += sd.y;
+                   tmp.disp.y = -1;
+                }
+
+                if ( ucz < 0 ) {
+                   ucz += sd.z;
+                   tmp.disp.z = -1;
+                }
+                if ( ucx >= sd.x ) {
+                   ucx -= sd.x;
+                   tmp.disp.x = 1;
+                }
+                if ( ucy >= sd.y ) {
+                   ucy -= sd.y;
+                   tmp.disp.y = 1;
+                }
+                if ( ucz >= sd.z ) {
+                   ucz -= sd.z;
+                   tmp.disp.z = 1;
+                }
+
+                /* having changed uc coordinates obtain j.gid */
+                tmp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+
+             }
+
+             /* else it is within bounds so simply extract j.gid */
+             else tmp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+
+             interactions.push_back(tmp);
+
+             /* increment interaction id */
+             int_counter ++;
+
+       }
+    }
+
+    std::cout << "number of interactions in system: " << interactions.size() << "\n\n";
+
+    ucf << interactions.size() << "\tisotropic\n";
+
+    // output interaction info to file
+    for (int i=0; i<interactions.size(); i++)
+
+        ucf << interactions[i].iid << "\t"
+            << interactions[i].i.gid << "\t"
+            << interactions[i].j.gid << "\t"
+            << interactions[i].disp.x << "\t"
+            << interactions[i].disp.y << "\t"
+            << interactions[i].disp.z << "\t"
+            << interactions[i].exchange << "\n";
+
+    ucf.close();
+
+    return EXIT_SUCCESS;
+}
+
+int output_materials(std::vector<material_t>& materials)
+{
+    for (int i=0; i<materials.size(); ++i)
+        std::cout << materials[i].name << "\t" << materials[i].id << "\n\t";
+
+    return EXIT_SUCCESS;
 }
 
 int initialise_material(std::string material, double zr_content, int config)
@@ -308,7 +634,7 @@ void populate_supercell()
 
 int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac)
 {
-    std::cout << "populating super cell\n";
+    std::cout << "\npopulating super cell\n";
 
     populate_supercell();
 
@@ -533,272 +859,3 @@ double calculate_rij (vec_t i, vec_t j)
 //    // ucd.y = 36.595;
 //    // ucd.z = 36.595;
 
-//    /*
-//    * generate large system
-//    */
-//
-//    // system dimensions
-//    vec_t sd;
-//    sd.x = 1;
-//    sd.y = 1;
-//    sd.z = 1;
-//
-//    std::cout << "\ndimensions of large system [A]: ("
-//    << sd.x * ucd.x << ", "
-//    << sd.y * ucd.y << ", "
-//    << sd.z * ucd.z << ")\n";
-//
-//    int ns = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
-//    std::cout << "number of atoms in system: " << ns << "\n";
-//
-//    // open file for rasmol output of system
-//    std::ofstream sysxyz ("system.xyz");
-//    sysxyz << ns << "\n\n";
-//
-//    // open file for ucf output
-//    std::ofstream ucf ("ndfeb.ucf");            // change
-//
-//    ucf << "# Unit cell size:\n"
-//    <<  sd.x*ucd.x << "\t"
-//    <<  sd.y*ucd.y << "\t"
-//    <<  sd.z*ucd.z << "\n"
-//    << "# Unit cell vectors:\n"
-//    << "1.0  0.0  0.0\n"
-//    << "0.0  1.0  0.0\n"
-//    << "0.0  0.0  1.0\n"
-//    << "# Atoms num, id cx cy cz mat lc hc\n"
-//    << ns << "\n";
-//
-//    // array to hold all atoms in system
-//    std::vector < std::vector < std::vector < std::vector <atom_t> > > > system;
-//
-//    // global id counter
-//    int gid_counter = 0;
-//    int tracked = 0;
-//
-//    /* resize vectors */
-//    system.resize(sd.x);
-//    for (int i=0; i<sd.x; i++) {
-//       system[i].resize(sd.y);
-//       for (int j=0; j<sd.y; j++) {
-//          system[i][j].resize(sd.z);
-//          for (int k=0; k<sd.z; k++) {
-//
-//             /* loop through unitcell atoms */
-//             for (int atom=0; atom<unitcell.size(); ++atom) {
-//
-//                atom_t tmp;
-//                vec_t uc;
-//                uc.x = i;
-//                uc.y = j;
-//                uc.z = k;
-//
-//                tmp.aid = unitcell[atom].aid;
-//                tmp.gid = gid_counter;
-//
-//                tmp.element = unitcell[atom].element;
-//
-//                tmp.mat = unitcell[atom].mat;
-//
-//                /*
-//                * cell tracking
-//                */
-//
-//                // if ( (i<((sd.x+ntr/2)-sd.x/2))
-//                //    &&(i>((sd.x-ntr/2)-sd.x/2))
-//                //    &&(j<((sd.y+ntr/2)-sd.y/2))
-//                //    &&(j>((sd.y-ntr/2)-sd.y/2))
-//                //    &&(k<((sd.z+ntr/2)-sd.z/2))
-//                //    &&(k>((sd.z-ntr/2)-sd.z/2)))
-//                // {
-//                //     tmp.mat = 1;
-//                //     tmp.element = 'h';
-//                //     ++tracked;
-//                // }
-//
-//                tmp.pos = unitcell[atom].pos + uc*ucd;
-//                ++gid_counter;
-//
-//                sysxyz << tmp.element << "\t"
-//                << tmp.pos.x << "\t"
-//                << tmp.pos.y << "\t"
-//                << tmp.pos.z << "\n";
-//
-//                // normalise coordinates to large system dimensions
-//                double sysx = tmp.pos.x / double(ucd.x) / double(sd.x);
-//                double sysy = tmp.pos.y / double(ucd.y) / double(sd.y);
-//                double sysz = tmp.pos.z / double(ucd.z) / double(sd.z);
-//
-//                // height categorisation
-//                double hinc = 6;            // change this
-//                tmp.hcat = sysz*hinc;
-//
-//                // output to file
-//                ucf << tmp.gid << "\t"
-//                << sysx << "\t"
-//                << sysy << "\t"
-//                << sysz << "\t"
-//                << tmp.mat << "\t"
-//                << 0 << "\t"
-//                << tmp.hcat << "\n";
-//
-//                system[i][j][k].push_back(tmp);
-//
-//             }
-//          }
-//       }
-//    }
-//
-//    std::cout << "number of tracked cells: " << tracked/unitcell.size() << "\n";
-//
-//    sysxyz.close();
-//
-//    ucf << "# Interactions n exctype, id i j dx dy dz Jij\n";
-//
-//    // ===============================================
-//    // determine interactions for every atom in system
-//    // using pre-calculated neighbour list
-//    // ===============================================
-//
-//    // initialise array to hold interactions for whole system
-//    std::vector<int_t> interactions;
-//
-//    // interaction counter
-//    int int_counter = 0;
-//
-//    // loop through every atom in system
-//    for (int i=0; i<sd.x; i++)
-//    for (int j=0; j<sd.y; j++)
-//    for (int k=0; k<sd.z; k++)
-//
-//    // first atom
-//    for (int atom=0; atom<unitcell.size(); atom++)
-//
-//    // loop through interaction information
-//    for (int p=0; p<ucints.size(); p++) {
-//
-//       // if interaction info refers to correct atom
-//       if (system[i][j][k][atom].aid == ucints[p].i.aid)
-//       {
-//          int_t tmp;
-//
-//          tmp.iid = int_counter;
-//          tmp.i.gid = system[i][j][k][atom].gid;
-//
-//          tmp.i.mat = system[i][j][k][atom].mat;
-//          tmp.i.element = system[i][j][k][atom].element;
-//
-//          tmp.j.element = ucints[p].j.element;
-//
-//          tmp.exchange = ucints[p].exchange;
-//
-//          // assume atom j is within system
-//          // to begin with
-//          tmp.disp.x = 0;
-//          tmp.disp.y = 0;
-//          tmp.disp.z = 0;
-//
-//          // check if atom j is within system boundaries
-//          int ucx = i + ucints[p].disp.x;
-//          int ucy = j + ucints[p].disp.y;
-//          int ucz = k + ucints[p].disp.z;
-//
-//          // only one of these conditions
-//          // needs to be satisfied for the
-//          // atom to be out of bounds
-//          if ( ucx < 0 || ucx >= sd.x ||
-//             ucy < 0 || ucy >= sd.y ||
-//             ucz < 0 || ucz >= sd.z )
-//             {
-//
-//                // periodic boundaries conditions
-//                if (ucx<0) {
-//                   ucx += sd.x;
-//                   tmp.disp.x = -1;
-//
-//                   //    // determine mat of atom j
-//                   //    if (tmp.i.mat==5)
-//                   //    {
-//                   //        if (tmp.j.element=="Nd") tmp.j.mat = 5;
-//                   //        else tmp.j.mat = 6;
-//                   //    }
-//                   //
-//                   //    else if (tmp.i.mat==6)
-//                   //    {
-//                   //        if (tmp.j.element=="Fe") tmp.j.mat = 6;
-//                   //        else tmp.j.mat = 5;
-//                   //    }
-//
-//                }
-//
-//                if (ucy<0) {
-//                   ucy += sd.y;
-//                   tmp.disp.y = -1;
-//                }
-//
-//                if (ucz<0) {
-//                   ucz += sd.z;
-//                   tmp.disp.z = -1;
-//                }
-//                if (ucx>=sd.x) {
-//                   ucx -= sd.x;
-//                   tmp.disp.x = 1;
-//                }
-//                if (ucy>=sd.y) {
-//                   ucy -= sd.y;
-//                   tmp.disp.y = 1;
-//                }
-//                if (ucz>=sd.z) {
-//                   ucz -= sd.z;
-//                   tmp.disp.z = 1;
-//                }
-//
-//                // having changed uc coordinates
-//                // obtain j.gid
-//                tmp.j.gid = system[ucx][ucy][ucz][ucints[p].j.aid].gid;
-//
-//             }
-//
-//             // else it is within bounds
-//             // so simply extract j.gid
-//             else tmp.j.gid = system[ucx][ucy][ucz][ucints[p].j.aid].gid;
-//
-//             /*
-//             // if at top afm boundary
-//             // switch sign of exchange
-//             // and amplify exchange to pin wall
-//             if (k==sd[2])
-//             {
-//             if (tmp.dz == -1) tmp.exchange *= -100;
-//          }
-//          else if (k==sd[2]-1)
-//          {
-//          if (tmp.dz == 1) tmp.exchange *= -100;
-//       }
-//       */
-//
-//       interactions.push_back(tmp);
-//
-//       // increment interaction id
-//       ++int_counter;
-//
-//    }
-// }
-//
-// // std::cout << "number of interactions in system: " << interactions.size() << "\n\n";
-//
-// ucf << interactions.size() << "\t0\n";
-//
-// // output interaction info to file
-// for (int i=0; i<interactions.size(); i++)
-//
-// ucf << interactions[i].iid << "\t"
-// << interactions[i].i.gid << "\t"
-// << interactions[i].j.gid << "\t"
-// << interactions[i].disp.x << "\t"
-// << interactions[i].disp.y << "\t"
-// << interactions[i].disp.z << "\t"
-// << interactions[i].exchange << "\n";
-//
-// ucf.close();
-//
