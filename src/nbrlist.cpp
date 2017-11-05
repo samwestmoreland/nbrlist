@@ -10,12 +10,19 @@
 /* function prototypes */
 double calculate_rij(vec_t i, vec_t j);     // distance calculation
 double calculate_jij_ndfeb(std::string i_type, std::string j_type, double rij);
-double calculate_jij_smfe12(std::string i_type, std::string j_type, double rij, double fe_fe_frac, double r_fe_frac);
+double calculate_jij_smfe12(std::string i_type,
+                            std::string j_type,
+                            double rij,
+                            double fe_fe_frac,
+                            double r_fe_frac);
 double calculate_jij_bccfe(double rij);
 int initialise_material(std::string material, double zr_content, int config);
 void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
 material_t determine_material_id(material_t material);
-int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor);
+int calculate_interactions(int exchange_fn,
+                           double tt_factor,
+                           double rt_factor,
+                           double rcut);
 vec_t calculate_lattice_parameters_from_zr_content(double zr_content);
 int output_materials(std::vector<material_t>& materials);
 int generate_large_system(std::vector<int_t>& uc_interactions,
@@ -69,6 +76,10 @@ int main (int argc, char *argv[])
     * **** read parameters ****
     * *************************/
 
+   double rcut = 0;
+   std::cout << "input cut-off: rcut\n";
+   std::cin >> rcut;
+
    double tt_factor = 0;
    double rt_factor = 0;
 
@@ -102,6 +113,7 @@ int main (int argc, char *argv[])
 
    std::cout << "\nuser inputted parameters\n";
    std::cout << "material: " << material << std::endl;
+   std::cout << "cut-off radius: " << rcut << std::endl;
    if (material != "bccfe")
    {
        std::cout << "T-T exchange factor: " << tt_factor << std::endl;
@@ -132,7 +144,7 @@ int main (int argc, char *argv[])
    output_materials(materials);
 
    /* this function generates the supercell and fills the interactions array */
-   calculate_interactions(exchange_fn, tt_factor, rt_factor);
+   calculate_interactions(exchange_fn, tt_factor, rt_factor, rcut);
 
    /**************************************/
    /*** calculate species interactions ***/
@@ -674,7 +686,7 @@ void populate_supercell()
 
 }
 
-int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac)
+int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac, double rcut)
 {
     std::cout << "\npopulating super cell\n";
 
@@ -690,9 +702,6 @@ int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac)
         std::cout <<
             "Fe-Fe exchange fraction = " << fe_fe_frac << "\n" <<
             "R-Fe exchange fraction = " << r_fe_frac << "\n";
-
-    /* cut-off radius in angstroms */
-    double rcut = 5.0;
 
     /* central cell location */
     int start = (supercell.size()-unitcell.size())/2;
