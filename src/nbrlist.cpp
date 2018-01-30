@@ -710,37 +710,37 @@ int determine_material_id(std::string const& in_material) {
 
 void populate_supercell() {
 
-    /* loop through dimensions */
-    for (int i=0; i<3; i++)
-        for (int j=0; j<3; j++)
-            for (int k=0; k<3; k++)
+   /* loop through dimensions */
+   for (int i=0; i<3; i++)
+      for (int j=0; j<3; j++)
+         for (int k=0; k<3; k++)
 
-                /* loop through atoms in unitcell */
-                for (int atom=0; atom<unitcell.size(); atom++) {
+            /* loop through atoms in unitcell */
+            for (int atom=0; atom<unitcell.size(); atom++) {
 
-                     atom_t temp;
-                     vec_t uc;
-                     uc.x = i;
-                     uc.y = j;
-                     uc.z = k;
+               atom_t temp;
+               vec_t uc;
+               uc.x = i;
+               uc.y = j;
+               uc.z = k;
 
-                     temp.aid = unitcell[atom].aid;
-                     temp.element = unitcell[atom].element;
-                     temp.mat = unitcell[atom].mat;
+               temp.aid = unitcell[atom].aid;
+               temp.element = unitcell[atom].element;
+               temp.mat = unitcell[atom].mat;
 
-                     /* replicate unitcell atoms */
-                     temp.pos = unitcell[atom].pos + (uc * ucd);
+               /* replicate unitcell atoms */
+               temp.pos = unitcell[atom].pos + (uc * ucd);
 
-                     /* label unitcell coordinates */
-                     temp.uc = uc;
+               /* label unitcell coordinates */
+               temp.uc = uc;
 
-                     /* dummy values for unneeded struct elements */
-                     temp.hcat = 0;
-                     temp.gid = 0;   // this isn't needed yet as the calculations are generated for a large system later
+               /* dummy values for unneeded struct elements */
+               temp.hcat = 0;
+               temp.gid = 0;   // this isn't needed yet as the calculations are generated for a large system later
 
-                     /* place atom in array */
-                     supercell.push_back(temp);
-                }
+               /* place atom in array */
+               supercell.push_back(temp);
+            }
 
    std::cout << "atoms in super cell: "
              << supercell.size() << std::endl;
