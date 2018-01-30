@@ -1,5 +1,8 @@
 nbrlist
 *.ucf
-coordinates/
+coordinates/*
 *.xyz
 *.mat
+src/nbrlist_onemat.cpp
+interface/
+vampire_test/

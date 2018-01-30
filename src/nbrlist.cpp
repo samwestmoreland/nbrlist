@@ -10,21 +10,27 @@
 /* function prototypes */
 double calculate_rij(vec_t i, vec_t j);     // distance calculation
 double calculate_jij_ndfeb(std::string i_type, std::string j_type, double rij);
+
 double calculate_jij_smfe12(std::string i_type,
                             std::string j_type,
                             double rij,
                             double fe_fe_frac,
                             double r_fe_frac);
+
 double calculate_jij_bccfe(double rij);
+
 int initialise_material(std::string material, double zr_content, int config);
 void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
 material_t determine_material_id(material_t material);
+
 int calculate_interactions(int exchange_fn,
                            double tt_factor,
                            double rt_factor,
                            double rcut);
+
 vec_t calculate_lattice_parameters_from_zr_content(double zr_content);
 int output_materials(std::vector<material_t>& materials);
+
 int generate_large_system(std::vector<int_t>& uc_interactions,
                           std::vector<atom_t>& unitcell,
                           std::vector < std::vector < std::vector < std::vector <atom_t> > > >& system, vec_t ucd,
@@ -54,16 +60,21 @@ int main (int argc, char *argv[])
 
    std::string material = argv[1];
    if (material != "bccfe" &&
-         material != "ndfeb" &&
-         material != "ndfe12" &&
-         material != "smfe12" &&
-         material != "smzrfe12")
+       material != "ndfeb" &&
+       material != "ndfe12" &&
+       material != "smfe12" &&
+       material != "smzrfe12")
    {
-      std::cout << "error! material not recognised\n";
+      std::cout << "material options are:\n";
+      std::cout << "   * ndfeb\n";
+      std::cout << "   * ndfe12\n";
+      std::cout << "   * bccfe\n";
+      std::cout << "   * smfe12\n";
+      std::cout << "   * smzrfe12\n";
       std::exit(EXIT_FAILURE);
    }
 
-   bool tracking;
+   bool tracking = false;
    if (argc > 2)
    {
       std::string argv2 = argv[2];
@@ -83,7 +94,7 @@ int main (int argc, char *argv[])
    double tt_factor = 0;
    double rt_factor = 0;
 
-   if (material != "bccfe")
+   if (material != "bccfe" && material != "ndfeb")
    {
        std::cout << "input exchange: tt, rt\n";
        std::cin >> tt_factor >> rt_factor;
@@ -150,23 +161,27 @@ int main (int argc, char *argv[])
    /*** calculate species interactions ***/
    /**************************************/
 
+   /* vector to hold interaction energy of each species with every other species */
    std::vector<std::vector<double> > species_interactions;
    species_interactions.resize(materials.size());
    for (int i=0; i<materials.size(); ++i) species_interactions[i].resize(materials.size());
 
+   /* vector with same dimensions to hold number of interactions */
    std::vector<std::vector<int> > n_interactions;
    n_interactions.resize(materials.size());
    for (int i=0; i<materials.size(); ++i) n_interactions[i].resize(materials.size());
 
+   /* initialise both arrays to zero */
    for (int i=0; i<materials.size(); ++i)
-       for (int j=0; j<materials.size(); ++j)
-       {
+       for (int j=0; j<materials.size(); ++j) {
+
            species_interactions[i][j] = 0;
            n_interactions[i][j] = 0;
+
        }
 
-   for (int i=0; i<uc_interactions.size(); ++i)
-   {
+   for (int i=0; i<uc_interactions.size(); ++i) {
+
        int j = uc_interactions[i].j.mat;
        int k = uc_interactions[i].i.mat;
 
@@ -174,25 +189,54 @@ int main (int argc, char *argv[])
        n_interactions[j][k] ++;
    }
 
-   std::cout << "\nexchange matrix (mean)\n";
+   /**************************************/
+   /*********** output arrays ************/
+   /**************************************/
 
-   for (int i=0; i<materials.size(); ++i)
-   {
-       for (int j=0; j<materials.size(); ++j)
-       {
-           species_interactions[i][j] /= n_interactions[i][j];
-           std::cout << species_interactions[i][j] << "\t";
+   std::cout << "\nn_interactions matrix\n";
+
+   for (int i=0; i<materials.size(); ++i) {
+       for (int j=0; j<materials.size(); ++j) {
+
+           std::cout << n_interactions[i][j] << "\t";
+
        }
 
        std::cout << std::endl;
    }
 
-   /* array to hold atoms in large system */
-   std::vector < std::vector < std::vector < std::vector <atom_t> > > > system;
+   std::cout << "\nexchange matrix (mean)\n";
 
-   if (tracking)
-   {
+   for (int i=0; i<materials.size(); ++i) {
+
+       for (int j=0; j<materials.size(); ++j) {
+
+          if (n_interactions[i][j] != 0) {
+
+             species_interactions[i][j] /= n_interactions[i][j];
+             std::cout << species_interactions[i][j] << "\t";
+
+          }
+
+          else std::cout << species_interactions[i][j] << "\t";
+       }
+
+       std::cout << std::endl;
+   }
+
+   std::cout << std::endl;
+
+   /***********************************************/
+   /*** generate large system for cell tracking ***/
+   /***********************************************/
+
+   if (tracking) {
+
+      /* array to hold atoms in large system */
+      std::vector < std::vector < std::vector < std::vector <atom_t> > > > system;
+
       generate_large_system(uc_interactions, unitcell, system, ucd, n_tracked_cells, materials.size(), system_dimension);
+
    }
 
    return 0;
@@ -344,8 +388,8 @@ int generate_large_system(  std::vector<int_t>& uc_interactions,
     for (int p=0; p<uc_interactions.size(); p++) {
 
        /* if interaction info refers to correct atom */
-       if (system[i][j][k][atom].aid == uc_interactions[p].i.aid)
-       {
+       if (system[i][j][k][atom].aid == uc_interactions[p].i.aid) {
+
           int_t tmp;
 
           tmp.iid = int_counter;
@@ -374,8 +418,7 @@ int generate_large_system(  std::vector<int_t>& uc_interactions,
 
           if ( ucx < 0 || ucx >= sd.x ||
                ucy < 0 || ucy >= sd.y ||
-               ucz < 0 || ucz >= sd.z  )
-             {
+               ucz < 0 || ucz >= sd.z  ) {
 
                 /* periodic boundaries conditions */
                 if ( ucx < 0 ) {
@@ -455,21 +498,23 @@ int generate_large_system(  std::vector<int_t>& uc_interactions,
     return EXIT_SUCCESS;
 }
 
-int output_materials(std::vector<material_t>& materials)
-{
+int output_materials(std::vector<material_t>& materials) {
+
     for (int i=0; i<materials.size(); ++i)
         std::cout << materials[i].name << "\t" << materials[i].id << "\n\t";
 
     return EXIT_SUCCESS;
 }
 
-int initialise_material(std::string material, double zr_content, int config)
-{
+int initialise_material(std::string material, double zr_content, int config) {
+
    std::cout << "initialising material " << material;
-   if (material == "smzrfe12")
-   {
+   if (material == "smzrfe12") {
+
        std::cout << " with configuration " << config << std::endl;
+
    }
+
    else std::cout << std::endl;
 
    std::string filename;
@@ -482,8 +527,8 @@ int initialise_material(std::string material, double zr_content, int config)
    std::ifstream infile (filename.c_str());
 
    /* check if file opened */
-   if (!(infile.is_open()))
-   {
+   if (!(infile.is_open())) {
+
       std::cerr   << "couldn't open coordinate file" << std::endl;
       std::cerr   << "exiting" << std::endl;
       std::exit(EXIT_FAILURE);
@@ -491,49 +536,55 @@ int initialise_material(std::string material, double zr_content, int config)
 
    int exchange_fn;
 
-   if (material == "bccfe")
-   {
+   if (material == "bccfe") {
+
        ucd.x = 2.856;
        ucd.y = 2.856;
        ucd.z = 2.856;
        exchange_fn = 0;
+
    }
 
-   else if (material == "ndfeb")
-   {
+   else if (material == "ndfeb") {
+
        ucd.x = 8.8;
        ucd.y = 8.8;
        ucd.z = 12.2;
        exchange_fn = 1;
+
    }
 
-   else if (material == "smfe12")
-   {
+   else if (material == "smfe12") {
+
        ucd.x = 8.497;
        ucd.y = 8.497;
        ucd.z = 4.687;
        exchange_fn = 2;
+
    }
 
    /* lattice parameters vary as a function of Zr content */
-   else if (material == "smzrfe12")
-   {
+   else if (material == "smzrfe12") {
+
        ucd = calculate_lattice_parameters_from_zr_content(zr_content);
        exchange_fn = 2;
+
    }
 
-   else if (material == "test")
-   {
+   else if (material == "test") {
+
        ucd.x = 1;
        ucd.y = 1;
        ucd.z = 1;
        exchange_fn = 0;
+
    }
 
-   else
-   {
+   else {
+
        std::cout << "material not found\nexiting program\n";
        std::exit(EXIT_FAILURE);
+
    }
 
    std::cout
@@ -552,8 +603,8 @@ int initialise_material(std::string material, double zr_content, int config)
       >> temp.element
       >> temp.pos.x
       >> temp.pos.y
-      >> temp.pos.z)
-      {
+      >> temp.pos.z) {
+
             /* assign atom id */
             temp.aid = atom_count;
             atom_count ++;
@@ -590,8 +641,8 @@ int initialise_material(std::string material, double zr_content, int config)
       << "# Atoms num, id cx cy cz mat lc hc\n"
       << unitcell.size() << std::endl;
 
-   for (int i=0; i<unitcell.size(); ++i)
-   {
+   for (int i=0; i<unitcell.size(); ++i) {
+
       outfile
          << unitcell[i].aid << "\t"
          << unitcell[i].pos.x/ucd.x << "\t"
@@ -604,8 +655,8 @@ int initialise_material(std::string material, double zr_content, int config)
    return exchange_fn;
 }
 
-vec_t calculate_lattice_parameters_from_zr_content(double zr_content)
-{
+vec_t calculate_lattice_parameters_from_zr_content(double zr_content) {
+
     double atom_rad = (zr_content - 8.22624)/(-4.51952);
     double a = 0.0929088 * atom_rad + 0.830892;
     double c = -0.00593675 * zr_content + 1;
@@ -620,24 +671,26 @@ vec_t calculate_lattice_parameters_from_zr_content(double zr_content)
     return ucd;
 }
 
-material_t determine_material_id(material_t in_material)
-{
+material_t determine_material_id(material_t in_material) {
+
     material_t out_material;
     out_material.name = in_material.name;
     out_material.id = 0;
 
-    if (materials.size() == 0)
-    {
+    if (materials.size() == 0) {
+
         materials.push_back(out_material);
         return out_material;
+
     }
 
-    for (int i=0; i<materials.size(); ++i)
-    {
-        if (in_material.name == materials[i].name)
-        {
+    for (int i=0; i<materials.size(); ++i) {
+
+        if (in_material.name == materials[i].name) {
+
             out_material.id = materials[i].id;
             return out_material;
+
         }
     }
 
@@ -648,16 +701,16 @@ material_t determine_material_id(material_t in_material)
     return out_material;
 }
 
-void populate_supercell()
-{
+void populate_supercell() {
+
     /* loop through dimensions */
     for (int i=0; i<3; i++)
         for (int j=0; j<3; j++)
             for (int k=0; k<3; k++)
 
                 /* loop through atoms in unitcell */
-                for (int atom=0; atom<unitcell.size(); atom++)
-                {
+                for (int atom=0; atom<unitcell.size(); atom++) {
+
                     atom_t temp;
                     vec_t uc;
                     uc.x = i;
@@ -686,8 +739,8 @@ void populate_supercell()
 
 }
 
-int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac, double rcut)
-{
+int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac, double rcut) {
+
     std::cout << "\npopulating super cell\n";
 
     populate_supercell();
@@ -710,17 +763,17 @@ int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac,
     int interaction_count = 0;
 
     /* loop through central cell */
-    for (int i=start; i<end; ++i)
-    {
+    for (int i=start; i<end; ++i) {
+
         /* loop through super cell (looking for atom j) */
-        for (int j=0; j<supercell.size(); ++j)
-        {
+        for (int j=0; j<supercell.size(); ++j) {
+
             /* calculate interatomic distance */
             double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
 
             /* if distance less than rcut and not same atom */
-            if (rij < rcut && rij > 1e-30)
-            {
+            if (rij < rcut && rij > 1e-30) {
+
                 /* create an interaction */
                 int_t temp;
                 temp.i = supercell[i];
@@ -732,19 +785,20 @@ int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac,
                 temp.disp = temp.j.uc - temp.i.uc;
 
                 /* calculate exchange energy */
-                if (exchange_fn == 0)
+                if (exchange_fn == 1)
                     temp.exchange = calculate_jij_ndfeb(temp.i.element, temp.j.element, rij);
-                else if (exchange_fn == 1)
+                else if (exchange_fn == 0)
                     temp.exchange = calculate_jij_bccfe(rij);
 
                 else if (exchange_fn == 2)
                     temp.exchange = calculate_jij_smfe12(temp.i.element, temp.j.element, rij, fe_fe_frac, r_fe_frac);
 
                 /* put interaction into array */
-                if (temp.exchange!=0)
-                {
+                if (temp.exchange!=0) {
+
                     uc_interactions.push_back(temp);
                     interaction_count ++;
+
                 }
             }
         }
@@ -771,14 +825,14 @@ int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac,
     return EXIT_SUCCESS;
 }
 
-void array_to_rasmol(std::vector<atom_t> array, std::string arrayname)
-{
+void array_to_rasmol(std::vector<atom_t> array, std::string arrayname) {
+
     std::string filename = arrayname + ".xyz";
     std::ofstream rasmol (filename.c_str());
 
     /* if file open */
-    if (rasmol)
-    {
+    if (rasmol) {
+
         rasmol << array.size() << "\n\n";
 
         for (int i=0; i<array.size(); ++i)
@@ -794,8 +848,8 @@ void array_to_rasmol(std::vector<atom_t> array, std::string arrayname)
 }
 
 /* (exchange_fn = 0) */
-double calculate_jij_bccfe(double rij)
-{
+double calculate_jij_bccfe(double rij) {
+
     /*
      * parameters from Pajda (2001) ab-initio data
      */
@@ -814,14 +868,14 @@ double calculate_jij_smfe12 (
         double rij,
         double fe_fe_frac,
         double r_fe_frac
-        )
-{
+        ) {
+
     double a = 60.5033;
     double b = 0.862717;
     double c = 1e-21;
 
     /* Sm-Sm */
-    if(i_type=="Sm" && j_type=="Sm"){
+    if(i_type=="Sm" && j_type=="Sm") {
         return 0.0;
     }
 
@@ -832,10 +886,11 @@ double calculate_jij_smfe12 (
             (i_type=="Fe8j" && j_type=="Sm") ||
             (i_type=="Sm" && j_type=="Fe8j") ||
             (i_type=="Fe8f" && j_type=="Sm") ||
-            (i_type=="Sm" && j_type=="Fe8f") )
-    {
+            (i_type=="Sm" && j_type=="Fe8f") ) {
+
         if (rij<=4.0) return r_fe_frac * c*(a/(rij*rij*rij)-b);       // ndfeb
         else return 0.0;
+
     }
 
     // Fe-Fe (cutoff at r = 5.74A)
@@ -856,8 +911,8 @@ double calculate_jij_smfe12 (
 }
 
 /* richard's ndfeb exchange function (exchange_fn = 0) */
-double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij)
-{
+double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij) {
+
     double A=36.9434;
     double B=1.25094;
     double C=-0.229572;
@@ -869,19 +924,18 @@ double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij)
     const double J0Nd_ndfe12=Fe_ratio_ndfeb*4.06835e-20/16.0;
 
     // Nd-Nd
-    if(i_type=="Nd" && j_type=="Nd"){
+    if(i_type=="Nd" && j_type=="Nd") {
         return 0.0;
     }
 
     // Nd-Fe (step function at r = 4A)
-    if((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe"))
-    {
+    if((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe")) {
         if(rij<=4.0) return 0.33*J0Nd_ndfeb;       // ndfeb
         else return 0.0;
     }
 
     // Fe-Fe (cutoff at r = 5.74A)
-    else if(i_type=="Fe" && j_type=="Fe"){
+    else if(i_type=="Fe" && j_type=="Fe") {
         //if(rij<=5.0) return -2.0*2.179872e-21*(A*exp(-B*rij)+C);
         // Correct for Tc = 600
         if(rij<=5.0) return 2.0*2.179872e-21*(A*exp(-B*rij)+C)*Fe_ratio_ndfeb;
@@ -898,8 +952,8 @@ double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij)
 }
 
 // function to calculate distance
-double calculate_rij (vec_t i, vec_t j)
-{
+double calculate_rij (vec_t i, vec_t j) { 
+
     vec_t d = j-i;
     double distance = sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
 
@@ -909,4 +963,3 @@ double calculate_rij (vec_t i, vec_t j)
 //    // ucd.x = 106.7;
 //    // ucd.y = 36.595;
 //    // ucd.z = 36.595;
-
