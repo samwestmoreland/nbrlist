@@ -42,7 +42,7 @@ public:
 class atom_t {
 public:
     std::string element;        // element string
-    vec_t spin;                 // spin components
+    // vec_t spin;                 // spin components
     vec_t pos;                  // coordinates
     vec_t uc;                   // unitcell coordinates
     int aid;                    // atom id (unique within unitcell)

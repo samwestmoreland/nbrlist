@@ -19,9 +19,9 @@ double calculate_jij_smfe12(std::string i_type,
 
 double calculate_jij_bccfe(double rij);
 
-int initialise_material(std::string material, double zr_content, int config);
+int initialise_material(std::string const& material, double zr_content, int config);
 void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
-material_t determine_material_id(material_t material);
+int determine_material_id(std::string const& in_material);
 
 int calculate_interactions(int exchange_fn,
                            double tt_factor,
@@ -506,7 +506,7 @@ int output_materials(std::vector<material_t>& materials) {
     return EXIT_SUCCESS;
 }
 
-int initialise_material(std::string material, double zr_content, int config) {
+int initialise_material(std::string const& material, double zr_content, int config) {
 
    std::cout << "initialising material " << material;
    if (material == "smzrfe12") {
@@ -595,7 +595,6 @@ int initialise_material(std::string material, double zr_content, int config) {
 
    atom_t temp;
    int atom_count = 0;
-   int material_count = 0;
 
    std::cout << "reading in unit cell coordinates\n";
 
@@ -612,7 +611,7 @@ int initialise_material(std::string material, double zr_content, int config) {
             /* determine material id */
             material_t temp_mat;
             temp_mat.name = temp.element;
-            temp_mat = determine_material_id(temp_mat);
+            temp_mat.id = determine_material_id(temp_mat.name);
             temp.mat = temp_mat.id;
 
             /* scale atom coordinates */
@@ -671,34 +670,37 @@ vec_t calculate_lattice_parameters_from_zr_content(double zr_content) {
     return ucd;
 }
 
-material_t determine_material_id(material_t in_material) {
+/* returns a material */
+int determine_material_id(std::string const& in_material) {
 
-    material_t out_material;
-    out_material.name = in_material.name;
-    out_material.id = 0;
+   /* define out_material which is a material_t to pushback into material array */
+   material_t out_material;
+   out_material.name = in_material;
+   out_material.id = 0;
 
-    if (materials.size() == 0) {
+   /* if this is the first material */
+   if (materials.size() == 0) {
 
-        materials.push_back(out_material);
-        return out_material;
+      materials.push_back(out_material);
+      return out_material.id;
 
-    }
+   }
 
-    for (int i=0; i<materials.size(); ++i) {
+   for (int i=0; i<materials.size(); ++i) {
 
-        if (in_material.name == materials[i].name) {
+      if (in_material == materials[i].name) {
 
-            out_material.id = materials[i].id;
-            return out_material;
+         out_material.id = materials[i].id;
+         return out_material.id;
 
-        }
-    }
+      }
+   }
 
-    /* if we get to here, material has not been found */
-    out_material.id = materials.size();
-    materials.push_back(out_material);
+   /* if we get to here, material has not been found in material array */
+   out_material.id = materials.size();
+   materials.push_back(out_material);
 
-    return out_material;
+   return out_material.id;
 }
 
 void populate_supercell() {
