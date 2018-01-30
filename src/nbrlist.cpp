@@ -599,14 +599,19 @@ int initialise_material(std::string const& material, double zr_content, int conf
    std::cout << "reading in unit cell coordinates\n";
 
    while (infile
-      >> temp.element
-      >> temp.pos.x
-      >> temp.pos.y
-      >> temp.pos.z) {
+       >> temp.element
+       >> temp.pos.x
+       >> temp.pos.y
+       >> temp.pos.z) {
 
             /* assign atom id */
             temp.aid = atom_count;
             atom_count ++;
+
+            /* assign some dummy variables for unneeded struct elements */
+            temp.gid = 0;
+            temp.hcat = 0;
+            temp.uc = 0;
 
             /* determine material id */
             material_t temp_mat;
@@ -713,31 +718,34 @@ void populate_supercell() {
                 /* loop through atoms in unitcell */
                 for (int atom=0; atom<unitcell.size(); atom++) {
 
-                    atom_t temp;
-                    vec_t uc;
-                    uc.x = i;
-                    uc.y = j;
-                    uc.z = k;
+                     atom_t temp;
+                     vec_t uc;
+                     uc.x = i;
+                     uc.y = j;
+                     uc.z = k;
 
-                    temp.aid = unitcell[atom].aid;
-                    temp.element = unitcell[atom].element;
-                    temp.mat = unitcell[atom].mat;
+                     temp.aid = unitcell[atom].aid;
+                     temp.element = unitcell[atom].element;
+                     temp.mat = unitcell[atom].mat;
 
-                    /* replicate unitcell atoms */
-                    temp.pos = unitcell[atom].pos + (uc * ucd);
+                     /* replicate unitcell atoms */
+                     temp.pos = unitcell[atom].pos + (uc * ucd);
 
-                    /* label unitcell coordinates */
-                    temp.uc = uc;
+                     /* label unitcell coordinates */
+                     temp.uc = uc;
 
-                    /* place atom in array */
-                    supercell.push_back(temp);
+                     /* dummy values for unneeded struct elements */
+                     temp.hcat = 0;
+                     temp.gid = 0;   // this isn't needed yet as the calculations are generated for a large system later
+
+                     /* place atom in array */
+                     supercell.push_back(temp);
                 }
 
-    std::cout
-        << "atoms in super cell: "
-        << supercell.size() << std::endl;
+   std::cout << "atoms in super cell: "
+             << supercell.size() << std::endl;
 
-        array_to_rasmol(supercell, "supercell");
+   array_to_rasmol(supercell, "supercell");
 
 }
 
