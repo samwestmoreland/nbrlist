@@ -20,7 +20,7 @@ double calculate_jij_smfe12(std::string i_type,
 double calculate_jij_bccfe(double rij);
 
 int initialise_material(std::string const& material, double zr_content, int config);
-void array_to_rasmol(std::vector<atom_t> array, std::string arrayname);
+void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
 int determine_material_id(std::string const& in_material);
 
 int calculate_interactions(int exchange_fn,
@@ -56,6 +56,7 @@ int main (int argc, char *argv[])
       * bccfe
       * smfe12
       * smzrfe12
+      * interface
    */
 
    std::string material = argv[1];
@@ -63,24 +64,27 @@ int main (int argc, char *argv[])
        material != "ndfeb" &&
        material != "ndfe12" &&
        material != "smfe12" &&
-       material != "smzrfe12")
-   {
+       material != "smzrfe12" &&
+       material != "interface" &&
+       material != "interface_mirrored") {
+
       std::cout << "material options are:\n";
       std::cout << "   * ndfeb\n";
       std::cout << "   * ndfe12\n";
       std::cout << "   * bccfe\n";
       std::cout << "   * smfe12\n";
       std::cout << "   * smzrfe12\n";
+      std::cout << "   * interface\n";
+      std::cout << "   * interface_mirrored\n";
       std::exit(EXIT_FAILURE);
    }
 
    bool tracking = false;
    if (argc > 2)
    {
-      std::string argv2 = argv[2];
+      std::string argv2 = argv[2];  // convert char* to string
       if (argv2 == "tracking")
          tracking = true;
-      else tracking = false;
    }
 
    /* *************************
@@ -208,9 +212,7 @@ int main (int argc, char *argv[])
    std::cout << "\nexchange matrix (mean)\n";
 
    for (int i=0; i<materials.size(); ++i) {
-
        for (int j=0; j<materials.size(); ++j) {
-
           if (n_interactions[i][j] != 0) {
 
              species_interactions[i][j] /= n_interactions[i][j];
@@ -508,12 +510,9 @@ int output_materials(std::vector<material_t>& materials) {
 
 int initialise_material(std::string const& material, double zr_content, int config) {
 
-   std::cout << "initialising material " << material;
-   if (material == "smzrfe12") {
+   std::cout << "initialising material \'" << material << "\'";
 
-       std::cout << " with configuration " << config << std::endl;
-
-   }
+   if (material == "smzrfe12") std::cout << " with configuration " << config << std::endl;
 
    else std::cout << std::endl;
 
@@ -611,7 +610,9 @@ int initialise_material(std::string const& material, double zr_content, int conf
             /* assign some dummy variables for unneeded struct elements */
             temp.gid = 0;
             temp.hcat = 0;
-            temp.uc = 0;
+            temp.uc.x = 0;
+            temp.uc.y = 0;
+            temp.uc.z = 0;
 
             /* determine material id */
             material_t temp_mat;
@@ -835,7 +836,7 @@ int calculate_interactions(int exchange_fn, double fe_fe_frac, double r_fe_frac,
     return EXIT_SUCCESS;
 }
 
-void array_to_rasmol(std::vector<atom_t> array, std::string arrayname) {
+void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname) {
 
     std::string filename = arrayname + ".xyz";
     std::ofstream rasmol (filename.c_str());
@@ -962,7 +963,7 @@ double calculate_jij_ndfeb (std::string i_type, std::string j_type, double rij) 
 }
 
 // function to calculate distance
-double calculate_rij (vec_t i, vec_t j) { 
+double calculate_rij (vec_t i, vec_t j) {
 
     vec_t d = j-i;
     double distance = sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
