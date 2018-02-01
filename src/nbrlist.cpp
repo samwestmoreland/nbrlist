@@ -64,15 +64,19 @@ std::ofstream outfile;
 
 int main (int argc, char *argv[]) {
 
-   /* material options are:
-      * ndfeb
-      * ndfe12
-      * bccfe
-      * smfe12
-      * smzrfe12
-      * interface
-      * interface_mirror
-   */
+   if (argc < 2 || argc > 3) {
+      std::cout << "program failed. requires an integer argument.\n";
+      std::cout << "options:\n";
+      std::cout << "  1 ndfeb\n";
+      std::cout << "  2 ndfe12\n";
+      std::cout << "  3 bccfe\n";
+      std::cout << "  4 smfe12\n";
+      std::cout << "  5 smzrfe12\n";
+      std::cout << "  6 interface\n";
+      std::cout << "  7 interface_mirror\n";
+
+      exit(EXIT_SUCCESS);
+   }
 
    int material = atoi(argv[1]);
 
