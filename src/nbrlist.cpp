@@ -4,10 +4,14 @@
 #include <cmath>
 #include <vector>
 #include <cstdlib>
+#include <algorithm>
 
 #include "../hdr/classes.hpp"
 
 /* function prototypes */
+parameter_t parse_input (std::string const& inputfile);
+int convert_material_string_to_integer(std::string const& material);
+
 double calculate_rij(vec_t& i, vec_t& j);     /* distance calculation */
 
 double calculate_jij(std::string const& i_type,
@@ -64,29 +68,7 @@ std::ofstream outfile;
 
 int main (int argc, char *argv[]) {
 
-   if (argc < 2 || argc > 3) {
-      std::cout << "program failed. requires an integer argument.\n";
-      std::cout << "options:\n";
-      std::cout << "  1 ndfeb\n";
-      std::cout << "  2 ndfe12\n";
-      std::cout << "  3 bccfe\n";
-      std::cout << "  4 smfe12\n";
-      std::cout << "  5 smzrfe12\n";
-      std::cout << "  6 interface\n";
-      std::cout << "  7 interface_mirror\n";
-
-      exit(EXIT_SUCCESS);
-   }
-
-   int material = atoi(argv[1]);
-
    /* global variables */
-   double rcut = 0;
-   bool tracking = false;
-
-   double tt_factor = 0;
-   double rt_factor = 0;
-
    int system_dimension = 0;
    int n_tracked_cells = 0;
 
@@ -95,55 +77,44 @@ int main (int argc, char *argv[]) {
 
    int exchange_fn;
 
-   std::string material_string;
+   parameter_t system = parse_input("input");
+   exchange_fn = system.material_int;
 
-   rcut = ask_for_cutoff(rcut);
-   tt_factor = ask_for_tt(tt_factor);
-   rt_factor = ask_for_rt(rt_factor);
-   exchange_fn = material;
+   // if (system.tracking) {
+   //    system_dimension = ask_for_system_dimensions(system_dimension);
+   //    n_tracked_cells = ask_for_n_tracked_cells(n_tracked_cells);
+   // }
 
-   if (tracking) {
-      system_dimension = ask_for_system_dimensions(system_dimension);
-      n_tracked_cells = ask_for_n_tracked_cells(n_tracked_cells);
-   }
-
-   switch(material) {
+   switch(system.material_int) {
 
       case 1 :    // bccfe
-         material_string = "bccfe";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       case 2 :    // ndfeb
-         material_string = "ndfeb";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       case 3 :    // ndfe12
-         material_string = "ndfe12";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       case 4 :    // smfe12
-         material_string = "smfe12";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       case 5 :    // smzrfe12
-         ask_for_zr_content(zr_content);
-         ask_for_uc_config(config);
-         material_string = "smzrfe12";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
+         // ask_for_zr_content(zr_content);
+         // ask_for_uc_config(config);
          break;
 
       case 6 :    // interface
-         material_string = "interface";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       case 7 :    // interface_mirror
-         material_string = "interface_mirror";
-         initialise_material(material, material_string, zr_content);
+         initialise_material(system.material_int, system.material, zr_content);
          break;
 
       default :
@@ -151,41 +122,18 @@ int main (int argc, char *argv[]) {
          exit(EXIT_SUCCESS);
    }
 
-   if (argc > 2)
-   {
-      std::string argv2 = argv[2];  // convert char* to string
-      if (argv2 == "tracking")
-         tracking = true;
-   }
-
-   /* *************************
-    * **** read parameters ****
-    * *************************/
-
-   // if (material == "smzrfe12")
-   // {
-   //     std::cout << "input Zr parameters: zr_content (x), unit cell configuration\n";
-   //     std::cin >> zr_content >> config;
-   // }
-
    /* ************************
     * *** print parameters ***
     * ************************/
 
    std::cout << "\nuser inputted parameters\n";
-   std::cout << "material: " << material_string << std::endl;
-   std::cout << "cut-off radius: " << rcut << std::endl;
+   std::cout << "material: " << system.material << std::endl;
+   std::cout << "cut-off radius: " << system.rcut << std::endl;
 
    // if (tracking)
    // {
    //     std::cout << "tracking system dimension: " << system_dimension << std::endl;
    //     std::cout << "no. of tracked cells: " << n_tracked_cells << std::endl;
-   // }
-
-   // if (material == "smzrfe12")
-   // {
-   //     std::cout << "Zr content (x): " << zr_content << std::endl;
-   //     std::cout << "unit cell configuration: " << config << std::endl;
    // }
 
    std::cout << std::endl;
@@ -198,7 +146,7 @@ int main (int argc, char *argv[]) {
    output_materials(materials);
 
    /* this function generates the supercell and fills the interactions array */
-   calculate_interactions(exchange_fn, tt_factor, rt_factor, rcut);
+   calculate_interactions(exchange_fn, system.tt_factor, system.rt_factor, system.rcut);
 
    /**************************************/
    /*** calculate species interactions ***/
@@ -282,6 +230,95 @@ int main (int argc, char *argv[]) {
 
    return 0;
 
+}
+
+int convert_material_string_to_integer(std::string const& material) {
+
+   int material_int = 0;
+
+   if (material == "bccfe") material_int = 1;
+   else if (material == "ndfeb") material_int = 2;
+   else if (material == "ndfe12") material_int = 3;
+   else if (material == "smfe12") material_int = 4;
+   else if (material == "smzrfe12") material_int = 5;
+   else if (material == "interface") material_int = 6;
+   else if (material == "interface_mirror") material_int = 7;
+
+   return material_int;
+}
+
+parameter_t parse_input (std::string const& inputfile)
+{
+   parameter_t system;
+
+   std::ifstream fin;
+   fin.open(inputfile.c_str());
+
+   /* exit if no input file found */
+   if (!fin.good())
+   {
+       std::cout << "no input file found. program exiting." << std::endl;
+       exit(EXIT_FAILURE);
+   }
+
+   std::string line;
+
+   /* read each line of file */
+   while (std::getline(fin, line))
+   {
+      /* skip comments or blank lines */
+      if ((line[0]=='#')||line.empty()) continue;
+
+      /* remove spaces from line */
+      line.erase(remove(line.begin(), line.end(), ' '), line.end());
+
+      /* identify delimiters and initialise key string */
+      const char* eq = "=";
+      const char* cm = ",";
+
+      std::string key = "";
+      std::string val = "";
+
+      /* point in line where key ends */
+      int endvar;
+
+      /* loop through characters in line to identify key */
+      for (int i=0; i<line.length(); ++i) {
+
+         if (line.at(i) != *eq) key.push_back(line.at(i));
+         else {
+            endvar = i+1;
+            break;
+         }
+      }
+
+      /* loop through characters after equals sign */
+      for (int i=endvar; i<line.length(); ++i) val.push_back(line.at(i));
+
+      if (key == "cutoff") system.rcut = stof(val);
+
+      else if (key == "tt_factor") system.tt_factor = stof(val);
+      else if (key == "rt_factor") system.rt_factor = stof(val);
+
+      else if (key == "tracking") {
+         if (val == "false") system.tracking = false;
+         else if (val == "true") system.tracking = true;
+         else std::cout << "input parse error: i don't know what " << "\"" << val << "\" means\n";
+      }
+
+      else if (key == "material") {
+         system.material = val;
+         system.material_int = convert_material_string_to_integer(val);
+      }
+
+      else {
+         std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
+         exit(EXIT_FAILURE);
+      }
+
+   }
+
+   return system;
 }
 
 std::string generate_filename(std::string const& material_string) {
@@ -616,11 +653,11 @@ int output_materials(std::vector<material_t>& materials) {
     return EXIT_SUCCESS;
 }
 
-int initialise_material(int material, std::string const& material_string, double zr_content) {
+int initialise_material(int material_int, std::string const& material, double zr_content) {
 
-   std::cout << "initialising material \'" << material_string << "\'\n";
+   std::cout << "initialising material \'" << material << "\'\n";
 
-   switch(material) {
+   switch(material_int) {
 
       case 1 :    /* bccfe */
          ucd.x = 2.856;
@@ -664,7 +701,7 @@ int initialise_material(int material, std::string const& material_string, double
    }
 
    std::cout << std::endl;
-   std::string filename = generate_filename(material_string);
+   std::string filename = generate_filename(material);
 
    std::ifstream infile (filename.c_str());
 
@@ -1057,7 +1094,7 @@ double jij_ndfeb(std::string const& i_type,
    /* nd-nd */
    if (i_type == "Nd" && j_type == "Nd") return 0.0;
 
-         // nd-fe (step function at r = 4A)
+   // nd-fe (step function at r = 4A)
    else if ((i_type == "Fe" && j_type == "Nd") || (i_type == "Nd" && j_type == "Fe")) {
       if (rij <= 4.0) return 0.33 * J0Nd_ndfeb;       // ndfeb
       else return 0.0;
@@ -1083,7 +1120,3 @@ double calculate_rij (vec_t& i, vec_t& j) {
 
     return distance;
 }
-
-//    // ucd.x = 106.7;
-//    // ucd.y = 36.595;
-//    // ucd.z = 36.595;

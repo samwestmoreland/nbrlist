@@ -3,6 +3,15 @@
 
 #include <string>
 
+struct parameter_t {
+    std::string material;
+    int material_int;
+    double rcut;
+    bool tracking;
+    double tt_factor;
+    double rt_factor;
+};
+
 class vec_t {
 public:
     double x;

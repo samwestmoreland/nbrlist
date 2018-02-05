@@ -1,0 +1,14 @@
+#	material options:
+#		bccfe
+#   	ndfeb
+#   	ndfe12
+#   	smfe12
+#   	smzrfe12
+#   	interface
+#   	interface_mirror
+
+material = ndfeb
+cut off = 6.0
+tt_factor = 1.3
+rt_factor = 0.4
+tracking = false
