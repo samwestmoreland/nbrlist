@@ -27,7 +27,7 @@ double jij_ndfeb(std::string const& i_type,
                  double tt_factor,
                  double rt_factor);
 
-int initialise_material(int material, std::string const& material_string, double zr_content);
+int initialise_material(int material_int, std::string const& material, double zr_content);
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
 int determine_material_id(std::string const& in_material);
 
@@ -126,9 +126,8 @@ int main (int argc, char *argv[]) {
     * *** print parameters ***
     * ************************/
 
-   std::cout << "\nuser inputted parameters\n";
-   std::cout << "material: " << system.material << std::endl;
-   std::cout << "cut-off radius: " << system.rcut << std::endl;
+   std::cout << "\nparameters read from input file:\n";
+   std::cout << "\tcut-off radius: " << system.rcut << std::endl;
 
    // if (tracking)
    // {
