@@ -144,7 +144,7 @@ int main (int argc, char *argv[]) {
    /* output names of materials */
    output_materials(materials);
 
-   /* this function generates the supercell and fills the interactions array */
+   /* this function generates the supercell and populates the interactions array */
    calculate_interactions(exchange_fn, system.tt_factor, system.rt_factor, system.rcut);
 
    /**************************************/
@@ -654,7 +654,7 @@ int output_materials(std::vector<material_t>& materials) {
 
 int initialise_material(int material_int, std::string const& material, double zr_content) {
 
-   std::cout << "initialising material \'" << material << "\'\n";
+   std::cout << "\ninitialising material \'" << material << "\'\n";
 
    switch(material_int) {
 
@@ -884,102 +884,102 @@ void populate_supercell() {
 
 int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, double rcut) {
 
-    std::cout << "\npopulating super cell\n";
+   std::cout << "\npopulating super cell...\n";
 
-    populate_supercell();
+   populate_supercell();
 
-    std::cout << "calculating interactions\n";
+   std::cout << "calculating interactions...\n";
 
-    std::cout << "using exchange function: " << exchange_fn << std::endl;
+   if (exchange_fn == 2)
+      std::cout <<
+         "TM-TM exchange factor = " << tt_factor << "\n" <<
+         "RE-TM exchange factor = " << rt_factor << "\n";
 
-    if (exchange_fn == 2)
-        std::cout <<
-            "TM-TM exchange factor = " << tt_factor << "\n" <<
-            "RE-TM exchange factor = " << rt_factor << "\n";
+   /* central cell location */
+   int start = (supercell.size()-unitcell.size())/2;
+   int end   = (supercell.size()+unitcell.size())/2;
 
-    /* central cell location */
-    int start = (supercell.size()-unitcell.size())/2;
-    int end   = (supercell.size()+unitcell.size())/2;
+   int interaction_count = 0;
 
-    int interaction_count = 0;
+   /* loop through central cell */
+   for (int i=start; i<end; ++i) {
 
-    /* loop through central cell */
-    for (int i=start; i<end; ++i) {
+      /* loop through super cell (looking for atom j) */
+      for (int j=0; j<supercell.size(); ++j) {
 
-        /* loop through super cell (looking for atom j) */
-        for (int j=0; j<supercell.size(); ++j) {
+         /* calculate interatomic distance */
+         double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
 
-            /* calculate interatomic distance */
-            double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
+         /* if distance less than rcut and not same atom */
+         if (rij < rcut && rij > 1e-30) {
 
-            /* if distance less than rcut and not same atom */
-            if (rij < rcut && rij > 1e-30) {
+            /* create an interaction */
+            int_t temp;
+            temp.i = supercell[i];
+            temp.j = supercell[j];
 
-                /* create an interaction */
-                int_t temp;
-                temp.i = supercell[i];
-                temp.j = supercell[j];
+            temp.iid = interaction_count;
 
-                temp.iid = interaction_count;
+            /* unitcell displacement */
+            temp.disp = temp.j.uc - temp.i.uc;
 
-                /* unitcell displacement */
-                temp.disp = temp.j.uc - temp.i.uc;
+            /* calculate exchange energy */
+            temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, tt_factor, rt_factor, exchange_fn);
 
-                /* calculate exchange energy */
-                temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, tt_factor, rt_factor, exchange_fn);
+            /* put interaction into array */
+            if (temp.exchange!=0) {
 
-                /* put interaction into array */
-                if (temp.exchange!=0) {
+               uc_interactions.push_back(temp);
+               interaction_count ++;
 
-                    uc_interactions.push_back(temp);
-                    interaction_count ++;
-
-                }
             }
-        }
-    }
+         }
+      }
+   }
 
-    std::cout
-        << "interactions: "
-        << uc_interactions.size() << std::endl;
+   std::cout
+      << "interactions: "
+      << uc_interactions.size() << std::endl;
 
-    outfile
-        << "# Interactions n exctype, id i j dx dy dz Jij\n"
-        << uc_interactions.size() << "\tisotropic\n";
+   outfile
+      << "# Interactions n exctype, id i j dx dy dz Jij\n"
+      << uc_interactions.size() << "\tisotropic\n";
 
-    for (int i=0; i<uc_interactions.size(); ++i)
-        outfile
-            << uc_interactions[i].iid       << "\t"
-            << uc_interactions[i].i.aid     << "\t"
-            << uc_interactions[i].j.aid     << "\t"
-            << uc_interactions[i].disp.x    << "\t"
-            << uc_interactions[i].disp.y    << "\t"
-            << uc_interactions[i].disp.z    << "\t"
-            << uc_interactions[i].exchange  << "\n";
+   for (int i=0; i<uc_interactions.size(); ++i)
+      outfile
+         << uc_interactions[i].iid       << "\t"
+         << uc_interactions[i].i.aid     << "\t"
+         << uc_interactions[i].j.aid     << "\t"
+         << uc_interactions[i].disp.x    << "\t"
+         << uc_interactions[i].disp.y    << "\t"
+         << uc_interactions[i].disp.z    << "\t"
+         << uc_interactions[i].exchange  << "\n";
 
-    return EXIT_SUCCESS;
+   std::cout << "interaction data output to \'output.ucf\'\n";
+
+   return EXIT_SUCCESS;
 }
 
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname) {
 
-    std::string filename = arrayname + ".xyz";
-    std::ofstream rasmol (filename.c_str());
+   std::string filename = arrayname + ".xyz";
+   std::ofstream rasmol (filename.c_str());
 
-    /* if file open */
-    if (rasmol) {
+   /* if file open */
+   if (rasmol) {
 
-        rasmol << array.size() << "\n\n";
+      rasmol << array.size() << "\n\n";
 
-        for (int i=0; i<array.size(); ++i)
-            rasmol
-                << array[i].element << "\t"
-                << array[i].pos.x   << "\t"
-                << array[i].pos.y   << "\t"
-                << array[i].pos.z   << "\n";
+      for (int i=0; i<array.size(); ++i)
+         rasmol
+            << array[i].element << "\t"
+            << array[i].pos.x   << "\t"
+            << array[i].pos.y   << "\t"
+            << array[i].pos.z   << "\n";
 
-        rasmol.close();
-        std::cout << filename << " file generated.\n";
-    }
+      rasmol.close();
+      std::cout << filename << " file generated\n\n";
+   }
 }
 
 /* calculate exchange energy */
@@ -994,11 +994,11 @@ double calculate_jij(std::string const& i_type,
 
       case 1 : { // bccfe
          /* parameters from Pajda (2001) */
+         /* factor 2 to correct for Hamiltonian */
          double a = 121.00658;
          double b = 1.72543313196278;
          double c = 1e-21;
-         double d = 2.0; /* factor 2 to correct for Hamiltonian */
-         return d*c*(a/(rij*rij*rij)-b);
+         return c*(a/(rij*rij*rij)-b);
       }
          break;
 
@@ -1009,15 +1009,39 @@ double calculate_jij(std::string const& i_type,
 
       case 3 : { // ndfe12
 
-         const double Fe_ratio_ndfe12=1.15*1.07692307692; // 560/520 = 1.07692307692
-         const double J0Nd_ndfe12=Fe_ratio_ndfe12*4.06835e-20/16.0;
+    		const double Fe_ratio = 1.2;      // loop from 1-2
+    		const double J0Nd = Fe_ratio * 4.06835e-20/16.0;
 
-         /* nd-nd */
-         if (i_type=="Nd" && j_type=="Nd") return 0.0;
+    		/* R-Fe exchange */
+    		double RFeFraction = 0.2;         // loop from 0.0-1.0
 
-         else return 0.0;
-      }
-         break;
+    		/* Fe-Fe (cutoff at r = 5.74A) */
+    		if (i_type == "Fe" && j_type == "Fe") {
+        		// if(rij<=5.0) return -2.0*2.179872e-21*(A*exp(-B*rij)+C);
+        		// Correct for Tc = 600
+
+         	double a = 36.9434;
+         	double b = 1.25094;
+         	double c = -0.229572;
+
+      		if ( rij <= 5.0 ) return 2.0*2.179872e-21 * (a*exp(-b*rij)+c) * Fe_ratio;
+      		else return 0.0;
+    		}
+
+    		/* Nd-Fe (step function at r = 4A) */
+    		else if ((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe")) {
+        		if (rij <= 4.0) return RFeFraction * J0Nd;       // ndfeb
+
+        		else return 0.0;
+      	}
+
+    		/* Nd-Nd */
+      	else if ( i_type == "Nd" && j_type == "Nd" ) return 0.0;
+
+    		/* B-x */
+      	else return 0.0;
+    	}
+      	break;
 
       case 4 : { /* smfe12 */
 
@@ -1079,28 +1103,26 @@ double calculate_jij(std::string const& i_type,
 
 double jij_ndfeb(std::string const& i_type,
                  std::string const& j_type,
-                 double rij,
-                 double tt_factor,
-                 double rt_factor) {
+                 double rij) {
 
    /* richard's code */
    const double a = 36.9434;
    const double b = 1.25094;
    const double c = -0.229572;
-   const double Fe_ratio_ndfeb=0.69618016759*1.07692307692; // 560/520 = 1.07692307692
-   const double J0Nd_ndfeb=Fe_ratio_ndfeb*4.06835e-20/16.0;
+   const double Fe_ratio_ndfeb = 0.69618016759 * 1.07692307692; // 560/520 = 1.07692307692
+   const double J0Nd_ndfeb = Fe_ratio_ndfeb * 4.06835e-20 / 16.0;
 
    /* nd-nd */
    if (i_type == "Nd" && j_type == "Nd") return 0.0;
 
-   // nd-fe (step function at r = 4A)
+   /* nd-fe (step function at r = 4A) */
    else if ((i_type == "Fe" && j_type == "Nd") || (i_type == "Nd" && j_type == "Fe")) {
       if (rij <= 4.0) return 0.33 * J0Nd_ndfeb;       // ndfeb
       else return 0.0;
    }
 
    /* fe-fe (cutoff at r = 5.74A) */
-   else if (i_type=="Fe" && j_type=="Fe") {
+   else if (i_type == "Fe" && j_type == "Fe") {
       // if(rij<=5.0) return -2.0*2.179872e-21*(A*exp(-B*rij)+C);
       // correct for Tc = 600
       if (rij <= 5.0) return 2.0 * 2.179872e-21 * (a*exp(-b*rij)+c) * Fe_ratio_ndfeb;
