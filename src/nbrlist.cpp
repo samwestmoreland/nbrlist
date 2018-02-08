@@ -23,9 +23,7 @@ double calculate_jij(std::string const& i_type,
 
 double jij_ndfeb(std::string const& i_type,
                  std::string const& j_type,
-                 double rij,
-                 double tt_factor,
-                 double rt_factor);
+                 double rij);
 
 int initialise_material(int material_int, std::string const& material, double zr_content);
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
@@ -1004,7 +1002,7 @@ double calculate_jij(std::string const& i_type,
 
       case 2 : // ndfeb
 
-         return jij_ndfeb(i_type, j_type, rij, tt_factor, rt_factor);
+         return jij_ndfeb(i_type, j_type, rij);
          break;
 
       case 3 : { // ndfe12
@@ -1083,18 +1081,18 @@ double calculate_jij(std::string const& i_type,
 
       case 5 : /* smzrfe12 */
 
-         return jij_ndfeb(i_type, j_type, rij, tt_factor, rt_factor);
+         return jij_ndfeb(i_type, j_type, rij);
          break;
 
       case 6 : /* interface */
 
-         return jij_ndfeb(i_type, j_type, rij, tt_factor, rt_factor);
+         return jij_ndfeb(i_type, j_type, rij);
          break;
 
 
       case 7 : /* interface mirror */
 
-         return jij_ndfeb(i_type, j_type, rij, tt_factor, rt_factor);
+         return jij_ndfeb(i_type, j_type, rij);
          break;
 
    } /* end of switch */
