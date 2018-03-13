@@ -10,6 +10,7 @@ struct parameter_t {
     bool tracking;
     double tt_factor;
     double rt_factor;
+    std::string config;
 };
 
 class vec_t {
@@ -58,6 +59,7 @@ public:
     int gid;                    // global atom id
     int hcat;                   // height category
     int mat;                    // material
+    bool fe;                    // is it iron or not
 };
 
 // class to hold interaction information

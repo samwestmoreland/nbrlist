@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
+#include <iomanip>
 
 #include "../hdr/classes.hpp"
 
@@ -25,9 +26,9 @@ double jij_ndfeb(std::string const& i_type,
                  std::string const& j_type,
                  double rij);
 
-int initialise_material(int material_int, std::string const& material, double zr_content);
+int initialise_material(int material_int, std::string const& material, double zr_content, std::string config);
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
-int determine_material_id(std::string const& in_material);
+int determine_material_id(std::string const& in_material, std::vector<material_t>& materials);
 
 int calculate_interactions(int exchange_fn,
                            double tt_factor,
@@ -35,7 +36,7 @@ int calculate_interactions(int exchange_fn,
                            double rcut);
 
 vec_t get_uc_dimensions_from_zr_content(double zr_content);
-int output_materials(std::vector<material_t>& materials);
+int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms);
 
 int generate_large_system(std::vector<int_t>& uc_interactions,
                           std::vector<atom_t>& unitcell,
@@ -52,7 +53,7 @@ int ask_for_n_tracked_cells(int n_tracked_cells);
 double ask_for_zr_content(double zr_content);
 int ask_for_uc_config(int config);
 
-std::string generate_filename(std::string const& material_string);
+std::string generate_filename(std::string const& material_string, std::string config);
 
 /* arrays (global) */
 std::vector<atom_t> unitcell;
@@ -70,12 +71,15 @@ int main (int argc, char *argv[]) {
    int system_dimension = 0;
    int n_tracked_cells = 0;
 
-   double zr_content = 0;
-   int config = 0;
 
    int exchange_fn;
 
    parameter_t system = parse_input("input");
+   double zr_content = 0;
+   if (stoi(system.config) < 5) zr_content = 0.5;
+   else if (stoi(system.config) < 7) zr_content = 0.25;
+   else zr_content = 0.75;
+
    exchange_fn = system.material_int;
 
    // if (system.tracking) {
@@ -86,33 +90,33 @@ int main (int argc, char *argv[]) {
    switch(system.material_int) {
 
       case 1 :    // bccfe
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       case 2 :    // ndfeb
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       case 3 :    // ndfe12
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       case 4 :    // smfe12
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       case 5 :    // smzrfe12
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, system.config);
          // ask_for_zr_content(zr_content);
          // ask_for_uc_config(config);
          break;
 
       case 6 :    // interface
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       case 7 :    // interface_mirror
-         initialise_material(system.material_int, system.material, zr_content);
+         initialise_material(system.material_int, system.material, zr_content, "");
          break;
 
       default :
@@ -136,11 +140,6 @@ int main (int argc, char *argv[]) {
    std::cout << std::endl;
 
    array_to_rasmol(unitcell, "unitcell");
-
-   std::cout << "number of materials: " << materials.size() << "\n\n\t";
-
-   /* output names of materials */
-   output_materials(materials);
 
    /* this function generates the supercell and populates the interactions array */
    calculate_interactions(exchange_fn, system.tt_factor, system.rt_factor, system.rcut);
@@ -204,7 +203,7 @@ int main (int argc, char *argv[]) {
 
           }
 
-          else std::cout << species_interactions[i][j] << "\t";
+          else std::cout << "0.000000000" << "\t";
        }
 
        std::cout << std::endl;
@@ -252,11 +251,12 @@ parameter_t parse_input (std::string const& inputfile)
    fin.open(inputfile.c_str());
 
    /* exit if no input file found */
-   if (!fin.good())
-   {
+   if (!fin.good()) {
        std::cout << "no input file found. program exiting." << std::endl;
        exit(EXIT_FAILURE);
    }
+   else
+      std::cout << "reading parameters from file '" << inputfile << "'" << std::endl;
 
    std::string line;
 
@@ -308,6 +308,10 @@ parameter_t parse_input (std::string const& inputfile)
          system.material_int = convert_material_string_to_integer(val);
       }
 
+      else if (key == "config") {
+         system.config = val;
+      }
+
       else {
          std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);
@@ -318,11 +322,14 @@ parameter_t parse_input (std::string const& inputfile)
    return system;
 }
 
-std::string generate_filename(std::string const& material_string) {
+std::string generate_filename(std::string const& material_string, std::string config) {
 
    std::string filename;
 
-   filename = "./coordinates/" + material_string + ".coords";
+   if (material_string == "smzrfe12")
+      filename = "./coordinates/smzrfe12/config" + config + ".coords";
+   else
+      filename = "./coordinates/" + material_string + ".coords";
 
    return filename;
 }
@@ -642,15 +649,15 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
    return EXIT_SUCCESS;
 }
 
-int output_materials(std::vector<material_t>& materials) {
+int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms) {
 
     for (int i=0; i<materials.size(); ++i)
-        std::cout << materials[i].name << "\t" << materials[i].id << "\n\t";
+        std::cout << materials[i].name << "\t" << materials[i].id << "\t" << material_specific_atom_count[i] << "\t" << float(material_specific_atom_count[i])/n_atoms*100. << "%\n\t";
 
     return EXIT_SUCCESS;
 }
 
-int initialise_material(int material_int, std::string const& material, double zr_content) {
+int initialise_material(int material_int, std::string const& material, double zr_content, std::string config) {
 
    std::cout << "\ninitialising material \'" << material << "\'\n";
 
@@ -698,7 +705,7 @@ int initialise_material(int material_int, std::string const& material, double zr
    }
 
    std::cout << std::endl;
-   std::string filename = generate_filename(material);
+   std::string filename = generate_filename(material, config);
 
    std::ifstream infile (filename.c_str());
 
@@ -725,7 +732,9 @@ int initialise_material(int material_int, std::string const& material, double zr
    atom_t temp;
    int atom_count = 0;
 
-   std::cout << "reading in unit cell coordinates\n";
+   std::vector<int> material_specific_atom_count;
+
+   std::cout << "reading in unit cell coordinates from " << filename << std::endl;
 
    while (infile
        >> temp.element
@@ -747,8 +756,19 @@ int initialise_material(int material_int, std::string const& material, double zr
             /* determine material id */
             material_t temp_mat;
             temp_mat.name = temp.element;
-            temp_mat.id = determine_material_id(temp_mat.name);
+            temp_mat.id = determine_material_id(temp_mat.name, materials);
             temp.mat = temp_mat.id;
+
+            /* make sure material_specific_atom_count has correct number of elements */
+            if (temp_mat.id+1 > material_specific_atom_count.size())
+               material_specific_atom_count.push_back(0);
+
+            /* add one to the material atom counter */
+            material_specific_atom_count[temp_mat.id] ++;
+
+            if (temp.element == "Fe8i" || temp.element == "Fe8j" || temp.element == "Fe8f" || temp.element == "Fe")
+               temp.fe = true;
+            else temp.fe = false;
 
             /* scale atom coordinates */
             temp.pos = temp.pos * ucd;
@@ -757,6 +777,11 @@ int initialise_material(int material_int, std::string const& material, double zr
       }
 
    std::cout << "atoms read in: " << unitcell.size() << std::endl;
+
+   std::cout << "number of materials: " << materials.size() << "\n\n\t";
+
+   /* output names of materials */
+   output_materials(materials, material_specific_atom_count, unitcell.size());
 
    /*
       output atom informaton to ucf
@@ -807,14 +832,14 @@ vec_t get_uc_dimensions_from_zr_content(double zr_content) {
 }
 
 /* returns a material */
-int determine_material_id(std::string const& in_material) {
+int determine_material_id(std::string const& in_material, std::vector<material_t>& materials) {
 
    /* define out_material which is a material_t to pushback into material array */
    material_t out_material;
    out_material.name = in_material;
    out_material.id = 0;
 
-   /* if this is the first material */
+   /* if this is the first time we've encountered this material */
    if (materials.size() == 0) {
 
       materials.push_back(out_material);
@@ -827,6 +852,7 @@ int determine_material_id(std::string const& in_material) {
       if (in_material == materials[i].name) {
 
          out_material.id = materials[i].id;
+
          return out_material.id;
 
       }
@@ -886,7 +912,7 @@ int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, 
 
    populate_supercell();
 
-   std::cout << "calculating interactions...\n";
+   std::cout << "calculating interactions...\n\n";
 
    if (exchange_fn == 2)
       std::cout <<
@@ -898,6 +924,12 @@ int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, 
    int end   = (supercell.size()+unitcell.size())/2;
 
    int interaction_count = 0;
+   int fefe_interaction_count = 0;
+   int refe_interaction_count = 0;
+
+   double total_neighbour_distance = 0;
+   double total_fefe_neighbour_distance = 0;
+   double total_refe_neighbour_distance = 0;
 
    /* loop through central cell */
    for (int i=start; i<end; ++i) {
@@ -910,6 +942,9 @@ int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, 
 
          /* if distance less than rcut and not same atom */
          if (rij < rcut && rij > 1e-30) {
+
+            /* add neighbour distance to total */
+            total_neighbour_distance += rij;
 
             /* create an interaction */
             int_t temp;
@@ -930,14 +965,61 @@ int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, 
                uc_interactions.push_back(temp);
                interaction_count ++;
 
+               if (
+                     (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                     (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe")
+                  ) {
+
+                  fefe_interaction_count ++;
+                  total_fefe_neighbour_distance += rij;
+               }
+
+               else if (
+                     ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                     (temp.j.element == "Sm" || temp.j.element == "Nd"))
+                     ||
+                     ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe") &&
+                     (temp.i.element == "Sm" || temp.i.element == "Nd"))
+                       ) {
+                  refe_interaction_count ++;
+                  total_refe_neighbour_distance += rij;
+               }
             }
+
          }
       }
    }
 
    std::cout
-      << "interactions: "
+      << "total interactions: "
       << uc_interactions.size() << std::endl;
+
+   std::cout
+      << "fe-fe interactions: "
+      << fefe_interaction_count << std::endl;
+
+   std::cout
+      << "re-fe interactions: "
+      << refe_interaction_count << std::endl;
+
+   std::cout << std::endl;
+
+   std::cout
+      << "mean neighbour distance: "
+      << total_neighbour_distance/interaction_count
+      << " A" << std::endl;
+
+   std::cout
+      << "mean fe-fe neighbour distance: "
+      << total_fefe_neighbour_distance/fefe_interaction_count
+      << " A" << std::endl;
+
+   std::cout
+      << "mean re-fe neighbour distance: "
+      << total_refe_neighbour_distance/refe_interaction_count
+      << " A" << std::endl;
+
+   std::cout << std::endl;
 
    outfile
       << "# Interactions n exctype, id i j dx dy dz Jij\n"
@@ -1007,44 +1089,45 @@ double calculate_jij(std::string const& i_type,
 
       case 3 : { // ndfe12
 
-    		const double Fe_ratio = 1.2;      // loop from 1-2
-    		const double J0Nd = Fe_ratio * 4.06835e-20/16.0;
+         const double Fe_ratio = 1.2;      // loop from 1-2
+         const double J0Nd = Fe_ratio * 4.06835e-20/16.0;
 
-    		/* R-Fe exchange */
-    		double RFeFraction = 0.2;         // loop from 0.0-1.0
+         /* R-Fe exchange */
+         double RFeFraction = 0.2;         // loop from 0.0-1.0
 
-    		/* Fe-Fe (cutoff at r = 5.74A) */
-    		if (i_type == "Fe" && j_type == "Fe") {
-        		// if(rij<=5.0) return -2.0*2.179872e-21*(A*exp(-B*rij)+C);
-        		// Correct for Tc = 600
+         /* Fe-Fe (cutoff at r = 5.74A) */
+         if (i_type == "Fe" && j_type == "Fe") {
 
-         	double a = 36.9434;
-         	double b = 1.25094;
-         	double c = -0.229572;
+            if ( rij <= 5.0 ) {
 
-      		if ( rij <= 5.0 ) return 2.0*2.179872e-21 * (a*exp(-b*rij)+c) * Fe_ratio;
-      		else return 0.0;
-    		}
+               double a = 36.9434;
+               double b = 1.25094;
+               double c = -0.229572;
 
-    		/* Nd-Fe (step function at r = 4A) */
-    		else if ((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe")) {
-        		if (rij <= 4.0) return RFeFraction * J0Nd;       // ndfeb
+               return 2.0*2.179872e-21 * (a*exp(-b*rij)+c) * Fe_ratio;
+            }
 
-        		else return 0.0;
+            else return 0.0;
+         }
+
+         /* Nd-Fe (step function at r = 4A) */
+         else if ((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe")) {
+            if (rij <= 4.0) return RFeFraction * J0Nd;       // ndfeb
+
+            else return 0.0;
       	}
 
     		/* Nd-Nd */
       	else if ( i_type == "Nd" && j_type == "Nd" ) return 0.0;
 
-    		/* B-x */
       	else return 0.0;
     	}
       	break;
 
       case 4 : { /* smfe12 */
 
-         double a = 60.5033;
-         double b = 0.862717;
+         double a = 121.00658;
+         double b = 1.72543313196278;
          double c = 1e-21;
 
          /* Sm-Sm */
@@ -1079,9 +1162,42 @@ double calculate_jij(std::string const& i_type,
       }
          break;
 
-      case 5 : /* smzrfe12 */
+      case 5 : { /* smzrfe12 */
 
-         return jij_ndfeb(i_type, j_type, rij);
+         double a = 121.00658;
+         double b = 1.72543313196278;
+         double c = 1e-21;
+
+         /* Sm-Sm */
+         if(i_type=="Sm" && j_type=="Sm") return 0.0;
+
+         /* Sm-Fe */
+         if ((i_type=="Fe8i" && j_type=="Sm") ||
+             (i_type=="Sm" && j_type=="Fe8i") ||
+             (i_type=="Fe8j" && j_type=="Sm") ||
+             (i_type=="Sm" && j_type=="Fe8j") ||
+             (i_type=="Fe8f" && j_type=="Sm") ||
+             (i_type=="Sm" && j_type=="Fe8f") ) {
+
+            if (rij<=4.0) return rt_factor * c*(a/(rij*rij*rij)-b);
+            else return 0.0;
+         }
+
+         // Fe-Fe (cutoff at r = 5.74A)
+         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
+                  (i_type=="Fe8i" && j_type=="Fe8j") ||
+                  (i_type=="Fe8i" && j_type=="Fe8f") ||
+                  (i_type=="Fe8j" && j_type=="Fe8i") ||
+                  (i_type=="Fe8j" && j_type=="Fe8j") ||
+                  (i_type=="Fe8j" && j_type=="Fe8f") ||
+                  (i_type=="Fe8f" && j_type=="Fe8i") ||
+                  (i_type=="Fe8f" && j_type=="Fe8j") ||
+                  (i_type=="Fe8f" && j_type=="Fe8f"))
+
+            return tt_factor * c*(a/(rij*rij*rij)-b);
+
+         else return 0.0;
+      }
          break;
 
       case 6 : /* interface */
@@ -1089,11 +1205,14 @@ double calculate_jij(std::string const& i_type,
          return jij_ndfeb(i_type, j_type, rij);
          break;
 
-
       case 7 : /* interface mirror */
 
          return jij_ndfeb(i_type, j_type, rij);
          break;
+
+      default :
+         std::cout << "invalid option. exiting.\n";
+         exit(EXIT_FAILURE);
 
    } /* end of switch */
 
