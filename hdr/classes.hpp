@@ -11,6 +11,7 @@ struct parameter_t {
     double tt_factor;
     double rt_factor;
     std::string config;
+    double zrconcentration;
 };
 
 class vec_t {

@@ -45,14 +45,6 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
                           int n_materials,
                           int system_dimension);
 
-double ask_for_cutoff(double rcut);
-double ask_for_rt(double rt_factor);
-double ask_for_tt(double tt_factor);
-int ask_for_system_dimensions(int system_dimension);
-int ask_for_n_tracked_cells(int n_tracked_cells);
-double ask_for_zr_content(double zr_content);
-int ask_for_uc_config(int config);
-
 std::string generate_filename(std::string const& material_string, std::string config);
 
 /* arrays (global) */
@@ -312,6 +304,10 @@ parameter_t parse_input (std::string const& inputfile)
          system.config = val;
       }
 
+      else if (key == "zrconcentration") {
+         system.zrconcentration = stof(val);
+      }
+
       else {
          std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);
@@ -332,63 +328,6 @@ std::string generate_filename(std::string const& material_string, std::string co
       filename = "./coordinates/" + material_string + ".coords";
 
    return filename;
-}
-
-double ask_for_zr_content(double zr_content) {
-
-   std::cout << "enter zr content (x)\n";
-   std::cin >> zr_content;
-
-   return zr_content;
-}
-
-int ask_for_uc_config(int config) {
-
-   std::cout << "enter unit cell configuration\n";
-   std::cin >> config;
-
-   return config;
-}
-
-int ask_for_system_dimensions(int system_dimension) {
-
-   std::cout << "enter system dimension\n";
-   std::cin >> system_dimension;
-
-   return system_dimension;
-}
-
-int ask_for_n_tracked_cells(int n_tracked_cells) {
-
-   std::cout << "enter number of tracked cells\n";
-   std::cin >> n_tracked_cells;
-
-   return n_tracked_cells;
-
-}
-
-double ask_for_rt(double rt_factor) {
-
-   std::cout << "enter exchange: RE-TM\n";
-   std::cin >> rt_factor;
-
-   return rt_factor;
-}
-
-double ask_for_tt(double tt_factor) {
-
-   std::cout << "enter exchange: TM-TM\n";
-   std::cin >> tt_factor;
-
-   return tt_factor;
-}
-
-double ask_for_cutoff(double rcut) {
-
-   std::cout << "enter cut-off radius\n";
-   std::cin >> rcut;
-
-   return rcut;
 }
 
 /* for now this function will include tracked cell calculation */
