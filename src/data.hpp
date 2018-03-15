@@ -1,7 +1,7 @@
 #ifndef DATA_H_
 #define DATA_H_
 
-#include <vector>
+#include<vector>
 
 /* arrays (global) */
 extern std::vector<atom_t> unitcell;
