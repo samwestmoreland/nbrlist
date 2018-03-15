@@ -12,13 +12,13 @@
 #include "./data.hpp"
 #include "./io.hpp"
 #include "./main.hpp"
+#include "./initialise.hpp"
 
 int main (int argc, char *argv[]) {
 
    /* global variables */
    int system_dimension = 0;
    int n_tracked_cells = 0;
-
 
    int exchange_fn;
 
@@ -38,33 +38,33 @@ int main (int argc, char *argv[]) {
    switch(system.material_int) {
 
       case 1 :    // bccfe
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       case 2 :    // ndfeb
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       case 3 :    // ndfe12
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       case 4 :    // smfe12
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       case 5 :    // smzrfe12
-         initialise_material(system.material_int, system.material, zr_content, system.config);
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          // ask_for_zr_content(zr_content);
          // ask_for_uc_config(config);
          break;
 
       case 6 :    // interface
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       case 7 :    // interface_mirror
-         initialise_material(system.material_int, system.material, zr_content, "");
+         initialise_material(system.material_int, system.material, system.zrconcentration);
          break;
 
       default :
@@ -189,19 +189,6 @@ int convert_material_string_to_integer(std::string const& material) {
    else if (material == "interface_mirror") material_int = 7;
 
    return material_int;
-}
-
-
-std::string generate_filename(std::string const& material_string, std::string config) {
-
-   std::string filename;
-
-   if (material_string == "smzrfe12")
-      filename = "./coordinates/smzrfe12/config" + config + ".coords";
-   else
-      filename = "./coordinates/" + material_string + ".coords";
-
-   return filename;
 }
 
 /* for now this function will include tracked cell calculation */
