@@ -2,7 +2,6 @@
 #define IO_H_
 
 int convert_material_string_to_integer(std::string const& material);
-vec_t get_uc_dimensions_from_zr_content(double zr_content);
 int determine_material_id(std::string const& in_material, std::vector<material_t>& materials);
 parameter_t parse_input (std::string const& inputfile);
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);

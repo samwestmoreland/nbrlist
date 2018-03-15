@@ -116,6 +116,6 @@ void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname) {
             << array[i].pos.z   << "\n";
 
       rasmol.close();
-      std::cout << filename << " file generated\n\n";
+      std::cout << filename << " file generated\n";
    }
 }

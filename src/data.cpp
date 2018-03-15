@@ -12,4 +12,3 @@ vec_t ucd;
 
 /* global output file stream */
 std::ofstream outfile;
-

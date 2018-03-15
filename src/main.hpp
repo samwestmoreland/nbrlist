@@ -1,11 +1,12 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-/* function prototypes for nbrlist.cpp */
+/* function prototypes for main.cpp */
 int convert_material_string_to_integer(std::string const& material);
 double calculate_rij(vec_t& i, vec_t& j);     /* distance calculation */
 double jij_ndfeb(std::string const& i_type, std::string const& j_type, double rij);
 int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, double rcut);
+vec_t get_uc_dimensions_from_zr_content(double zrconcentration);
 
 int generate_large_system(std::vector<int_t>& uc_interactions,
                           std::vector<atom_t>& unitcell,

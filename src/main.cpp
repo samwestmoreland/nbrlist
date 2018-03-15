@@ -16,6 +16,14 @@
 
 int main (int argc, char *argv[]) {
 
+   std::cout << std::endl;
+   std::cout << "***************************************************\n";
+   std::cout << std::endl;
+   std::cout << "                   Nbrlist\n\n";
+   std::cout << "       Compiled on " << __DATE__ << " at " << __TIME__ << "\n\n";
+   std::cout << "***************************************************\n";
+   std::cout << std::endl;
+
    /* global variables */
    int system_dimension = 0;
    int n_tracked_cells = 0;
@@ -23,10 +31,6 @@ int main (int argc, char *argv[]) {
    int exchange_fn;
 
    parameter_t system = parse_input("input");
-   double zr_content = 0;
-   if (stoi(system.config) < 5) zr_content = 0.5;
-   else if (stoi(system.config) < 7) zr_content = 0.25;
-   else zr_content = 0.75;
 
    exchange_fn = system.material_int;
 
@@ -35,42 +39,11 @@ int main (int argc, char *argv[]) {
    //    n_tracked_cells = ask_for_n_tracked_cells(n_tracked_cells);
    // }
 
-   switch(system.material_int) {
-
-      case 1 :    // bccfe
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      case 2 :    // ndfeb
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      case 3 :    // ndfe12
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      case 4 :    // smfe12
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      case 5 :    // smzrfe12
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         // ask_for_zr_content(zr_content);
-         // ask_for_uc_config(config);
-         break;
-
-      case 6 :    // interface
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      case 7 :    // interface_mirror
-         initialise_material(system.material_int, system.material, system.zrconcentration);
-         break;
-
-      default :
-         std::cout << "invalid option. exiting.\n";
-         exit(EXIT_SUCCESS);
+   if (system.material_int > 7 || system.material_int < 1) {
+      std::cout << "invalid material. exiting.\n";
+      exit(EXIT_SUCCESS);
    }
+   else initialise_material(system.material_int, system.material, system.zrconcentration);
 
    /* ************************
     * *** print parameters ***
@@ -78,6 +51,9 @@ int main (int argc, char *argv[]) {
 
    std::cout << "\nparameters read from input file:\n";
    std::cout << "\tcut-off radius: " << system.rcut << std::endl;
+
+   if (system.material_int == 5)
+      std::cout << "\tzr concentration: " << system.zrconcentration << std::endl;
 
    // if (tracking)
    // {
@@ -449,11 +425,11 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
    return EXIT_SUCCESS;
 }
 
-vec_t get_uc_dimensions_from_zr_content(double zr_content) {
+vec_t get_uc_dimensions_from_zr_content(double zrconcentration) {
 
-    double atom_rad = (zr_content - 8.22624)/(-4.51952);
+    double atom_rad = (zrconcentration - 8.22624)/(-4.51952);
     double a = 0.0929088 * atom_rad + 0.830892;
-    double c = -0.00593675 * zr_content + 1;
+    double c = -0.00593675 * zrconcentration + 1;
 
     a *= 8.497;
     c *= 4.687;

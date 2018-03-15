@@ -8,6 +8,7 @@
 #include "./data.hpp"
 #include "./io.hpp"
 #include "./initialise.hpp"
+#include "./main.hpp"
 
 int initialise_material(int material_int, std::string const& material, double zrconcentration) {
 
@@ -79,7 +80,7 @@ int initialise_material(int material_int, std::string const& material, double zr
 
    std::vector<int> material_specific_atom_count;
 
-   std::cout << "reading in unit cell coordinates from " << filename << std::endl;
+   std::cout << "reading in unit cell coordinates from '" << filename << "'\n";
 
    while (infile
        >> temp.element
@@ -111,6 +112,7 @@ int initialise_material(int material_int, std::string const& material, double zr
             /* add one to the material atom counter */
             material_specific_atom_count[temp_mat.id] ++;
 
+            /* for material specific atom counting, determine if atom if Fe or not */
             if (temp.element == "Fe8i" || temp.element == "Fe8j" || temp.element == "Fe8f" || temp.element == "Fe")
                temp.fe = true;
             else temp.fe = false;
@@ -160,6 +162,7 @@ int initialise_material(int material_int, std::string const& material, double zr
    return EXIT_SUCCESS;
 }
 
+/* function definition */
 std::string generate_filename(std::string const& material_string, double zrconcentration) {
 
    std::string filename;
@@ -171,7 +174,7 @@ std::string generate_filename(std::string const& material_string, double zrconce
    /**/
 
    if (material_string == "smzrfe12")
-      filename = "./coordinates/smzrfe12/config" + zr_string + ".coords";
+      filename = "./coordinates/smfe12.coords";
    else
       filename = "./coordinates/" + material_string + ".coords";
 
