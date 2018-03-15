@@ -57,8 +57,8 @@ int initialise_material(int material_int, std::string const& material, double zr
    }
 
    std::cout << std::endl;
-   std::string filename = generate_filename(material, zrconcentration);
 
+   std::string filename = generate_filename(material, zrconcentration);
    std::ifstream infile (filename.c_str());
 
    /* check if file opened */
