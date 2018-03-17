@@ -80,6 +80,15 @@ parameter_t parse_input (std::string const& inputfile) {
          system.zrconcentration = stof(val);
       }
 
+      else if (key == "domainwall") {
+         if (val == "true") system.domainwall = true;
+         else if (val == "false") system.domainwall = false;
+         else {
+            std::cout << "not sure what '" << val << "' means. exiting\n";
+            exit(EXIT_FAILURE);
+         }
+      }
+
       else {
          std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);
@@ -93,7 +102,18 @@ parameter_t parse_input (std::string const& inputfile) {
 int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms) {
 
     for (int i=0; i<materials.size(); ++i)
-        std::cout << materials[i].name << "\t" << materials[i].id << "\t" << material_specific_atom_count[i] << "\t" << float(material_specific_atom_count[i])/n_atoms*100. << "%\n\t";
+        std::cout << "\t"
+                  << materials[i].name << "\t"
+                  << materials[i].id << "\t"
+                  << material_specific_atom_count[i] << "\t"
+                  << float(material_specific_atom_count[i])/n_atoms*100. << "%\n";
+
+    if (materials[materials.size()-1].name == "Zr") {
+       std::cout << std::endl
+                 << "zr concentration: "
+                 << float(material_specific_atom_count[materials.size()-1])/(float(material_specific_atom_count[0])+float(material_specific_atom_count[materials.size()-1]))
+                 << std::endl;
+    }
 
     return EXIT_SUCCESS;
 }

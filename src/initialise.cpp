@@ -78,8 +78,6 @@ int initialise_material(int material_int, std::string const& material, double zr
    atom_t temp;
    int atom_count = 0;
 
-   std::vector<int> material_specific_atom_count;
-
    std::cout << "reading in unit cell coordinates from '" << filename << "'\n";
 
    while (infile
@@ -125,7 +123,7 @@ int initialise_material(int material_int, std::string const& material, double zr
 
    std::cout << "atoms read in: " << unitcell.size() << std::endl;
 
-   std::cout << "number of materials: " << materials.size() << "\n\n\t";
+   std::cout << "number of materials: " << materials.size() << "\n\n";
 
    /* output names of materials */
    output_materials(materials, material_specific_atom_count, unitcell.size());

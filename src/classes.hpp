@@ -12,6 +12,7 @@ struct parameter_t {
     double rt_factor;
     std::string config;
     double zrconcentration;
+    bool domainwall;
 };
 
 class vec_t {
