@@ -3,18 +3,6 @@
 
 #include <string>
 
-struct parameter_t {
-    std::string material;
-    int material_int;
-    double rcut;
-    bool tracking;
-    double tt_factor;
-    double rt_factor;
-    std::string config;
-    double zrconcentration;
-    bool domainwall;
-};
-
 class vec_t {
 public:
     double x;
@@ -48,6 +36,19 @@ public:
         vec.z = this->z + v.z;
         return vec;
     }
+};
+
+struct parameter_t {
+    std::string material;
+    int material_int;
+    double rcut;
+    bool tracking;
+    double tt_factor;
+    double rt_factor;
+    std::string config;
+    double zrconcentration;
+    bool domainwall;
+    vec_t dw_dim;
 };
 
 // class for all atoms in system

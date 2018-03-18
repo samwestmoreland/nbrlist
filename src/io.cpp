@@ -89,6 +89,21 @@ parameter_t parse_input (std::string const& inputfile) {
          }
       }
 
+      else if (key == "dwsystemdimensionx") {
+         system.domainwall = true;
+         system.dw_dim.x = stof(val);
+      }
+
+      else if (key == "dwsystemdimensiony") {
+         system.domainwall = true;
+         system.dw_dim.y = stof(val);
+      }
+
+      else if (key == "dwsystemdimensionz") {
+         system.domainwall = true;
+         system.dw_dim.z = stof(val);
+      }
+
       else {
          std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);

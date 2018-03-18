@@ -143,7 +143,7 @@ int main (int argc, char *argv[]) {
    std::cout << std::endl;
 
    /* generate a domain wall system */
-   if (system.domainwall == true) generate_domain_wall_system();
+   if (system.domainwall == true) generate_domain_wall_system(system.dw_dim);
 
    /***********************************************/
    /*** generate large system for cell tracking ***/
@@ -971,16 +971,16 @@ int expand_unitcell_and_substitute_zr_atoms(double zrconcentration) {
    return EXIT_SUCCESS;
 }
 
-int generate_domain_wall_system() {
+int generate_domain_wall_system(vec_t dw_dim) {
 
    std::cout << "initialising domain wall system\n\n";
 
    /* determine dimensions of system in unitcells */
    /* for long system in x */
    vec_t sd_in_nm;
-   sd_in_nm.x = 15;
-   sd_in_nm.y = 3;
-   sd_in_nm.z = 3;
+   dw_dim.x = 15;
+   dw_dim.y = 3;
+   dw_dim.z = 3;
 
    /* for long system in z
       x = 2 nm
@@ -988,12 +988,12 @@ int generate_domain_wall_system() {
       z = 12 nm */
 
    vec_t sd; /* system dimensions in unitcells */
-   sd.x = floor(sd_in_nm.x*10.0/ucd.x+0.5);
-   sd.y = floor(sd_in_nm.y*10.0/ucd.y+0.5);
-   sd.z = floor(sd_in_nm.z*10.0/ucd.z+0.5);
+   sd.x = floor(dw_dim.x*10.0/ucd.x+0.5);
+   sd.y = floor(dw_dim.y*10.0/ucd.y+0.5);
+   sd.z = floor(dw_dim.z*10.0/ucd.z+0.5);
 
    std::cout << "dimensions of domain wall system: ";
-   std::cout << sd.x << " x " << sd.y << " x " << sd.z << " unitcells\n";
+   std::cout << dw_dim.x << " x " << dw_dim.y << " x " << dw_dim.z << " unitcells\n";
 
    int ns = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
    std::cout << "number of atoms in system: " << ns << "\n";
@@ -1130,7 +1130,7 @@ int generate_domain_wall_system() {
 
                         /* periodic boundaries conditions */
                         if ( ucx < 0 ) {
-                           tmp.exchange *= -100; /* antiferro periodic boundaries */
+                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucx += sd.x;
                            tmp.disp.x = -1;
 
@@ -1160,7 +1160,7 @@ int generate_domain_wall_system() {
                         }
 
                         if ( ucx >= sd.x ) {
-                           tmp.exchange *= -100; /* antiferro periodic boundaries */
+                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucx -= sd.x;
                            tmp.disp.x = 1;
                         }
@@ -1210,7 +1210,8 @@ int generate_domain_wall_system() {
          << interactions[i].disp.z << "\t"
          << interactions[i].exchange << "\n";
 
-   std::cout << "interactions written to file 'domainwall.ucf'\n";
+   std::cout << "number of interactions found: " << interactions.size() << std::endl;
+   std::cout << "interaction data output to file 'domainwall.ucf'\n";
 
    ucf.close();
 

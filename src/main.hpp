@@ -8,7 +8,7 @@ double jij_ndfeb(std::string const& i_type, std::string const& j_type, double ri
 int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, double rcut, double zrconcentration);
 vec_t get_uc_dimensions_from_zr_content(double zrconcentration);
 int expand_unitcell_and_substitute_zr_atoms(double zrconcentration);
-int generate_domain_wall_system();
+int generate_domain_wall_system(vec_t dw_dim);
 
 int generate_large_system(std::vector<int_t>& uc_interactions,
                           std::vector<atom_t>& unitcell,
