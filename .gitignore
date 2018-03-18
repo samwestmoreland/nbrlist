@@ -8,3 +8,4 @@ interface/
 vampire_test/
 input
 /input
+build/
