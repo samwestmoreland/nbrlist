@@ -78,6 +78,7 @@ parameter_t parse_input (std::string const& inputfile) {
 
       else if (key == "zrconcentration") {
          system.zrconcentration = stof(val);
+         if (system.zrconcentration != 0) system.zrdoping = true;
       }
 
       else if (key == "domainwall") {

@@ -49,6 +49,7 @@ struct parameter_t {
     double zrconcentration;
     bool domainwall;
     vec_t dw_dim;
+    bool zrdoping;
 };
 
 // class for all atoms in system

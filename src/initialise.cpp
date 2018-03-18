@@ -132,29 +132,31 @@ int initialise_material(int material_int, std::string const& material, double zr
       output atom informaton to ucf
    */
 
-   outfile.open("output.ucf");
-
-   outfile
-      << "# Unit cell size:\n"
-      << ucd.x << "\t"
-      << ucd.y << "\t"
-      << ucd.z << "\n"
-      << "# Unit cell vectors\n"
-      << "1.0 0.0 0.0\n"
-      << "0.0 1.0 0.0\n"
-      << "0.0 0.0 1.0\n"
-      << "# Atoms num, id cx cy cz mat lc hc\n"
-      << unitcell.size() << std::endl;
-
-   for (int i=0; i<unitcell.size(); ++i) {
+   if (zrconcentration == 0) {
+      outfile.open("output.ucf");
 
       outfile
-         << unitcell[i].aid << "\t"
-         << unitcell[i].pos.x/ucd.x << "\t"
-         << unitcell[i].pos.y/ucd.y << "\t"
-         << unitcell[i].pos.z/ucd.z << "\t"
-         << unitcell[i].mat << "\t"
-         << "0\t0\n";
+         << "# Unit cell size:\n"
+         << ucd.x << "\t"
+         << ucd.y << "\t"
+         << ucd.z << "\n"
+         << "# Unit cell vectors\n"
+         << "1.0 0.0 0.0\n"
+         << "0.0 1.0 0.0\n"
+         << "0.0 0.0 1.0\n"
+         << "# Atoms num, id cx cy cz mat lc hc\n"
+         << unitcell.size() << std::endl;
+
+      for (int i=0; i<unitcell.size(); ++i) {
+
+         outfile
+            << unitcell[i].aid << "\t"
+            << unitcell[i].pos.x/ucd.x << "\t"
+            << unitcell[i].pos.y/ucd.y << "\t"
+            << unitcell[i].pos.z/ucd.z << "\t"
+            << unitcell[i].mat << "\t"
+            << "0\t0\n";
+      }
    }
 
    return EXIT_SUCCESS;

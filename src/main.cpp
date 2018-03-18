@@ -13,6 +13,7 @@
 #include "./io.hpp"
 #include "./main.hpp"
 #include "./initialise.hpp"
+#include "./expand_uc.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -31,9 +32,10 @@ int main (int argc, char *argv[]) {
    /* default parameters */
    parameter_t system;
    system.domainwall = false;
+   system.zrdoping = false;
 
    /* read parameters from input file */
-   system = parse_input("input");
+   system = parse_input("ucf_inputfile");
 
    exchange_fn = system.material_int;
 
@@ -46,6 +48,7 @@ int main (int argc, char *argv[]) {
       std::cout << "invalid material. exiting.\n";
       exit(EXIT_SUCCESS);
    }
+
    else initialise_material(system.material_int, system.material, system.zrconcentration);
 
    /* ************************
@@ -55,7 +58,7 @@ int main (int argc, char *argv[]) {
    std::cout << "\nparameters read from input file:\n";
    std::cout << "\tcut-off radius: " << system.rcut << std::endl;
 
-   if (system.material_int == 4)
+   if (system.zrconcentration != 0)
       std::cout << "\tzr concentration: " << system.zrconcentration << std::endl;
 
    // if (tracking)
@@ -72,8 +75,8 @@ int main (int argc, char *argv[]) {
    if (system.zrconcentration != 0)
       expand_unitcell_and_substitute_zr_atoms(system.zrconcentration);
 
-   /* this function generates the supercell and populates the interactions array */
-   calculate_interactions(exchange_fn, system.tt_factor, system.rt_factor, system.rcut, system.zrconcentration);
+   /* this function generates a supercell, and using that populates an interactions array */
+   calculate_interactions(exchange_fn, system);
 
    /**************************************/
    /*** calculate species interactions ***/
@@ -143,7 +146,7 @@ int main (int argc, char *argv[]) {
    std::cout << std::endl;
 
    /* generate a domain wall system */
-   if (system.domainwall == true) generate_domain_wall_system(system.dw_dim);
+   if (system.domainwall == true) generate_domain_wall_system(system.dw_dim, system.zrdoping);
 
    /***********************************************/
    /*** generate large system for cell tracking ***/
@@ -200,19 +203,19 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
    int ns = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
    std::cout << "number of atoms in system: " << ns << "\n";
 
-   std::ofstream ucf ("large.ucf");
+   std::ofstream largeucf ("large.ucf");
 
    /* output coordinates to unit cell file */
-   ucf << "# Unit cell size:\n"
-       <<  sd.x*ucd.x << "\t"
-       <<  sd.y*ucd.y << "\t"
-       <<  sd.z*ucd.z << "\n"
-       << "# Unit cell vectors:\n"
-       << "1.0  0.0  0.0\n"
-       << "0.0  1.0  0.0\n"
-       << "0.0  0.0  1.0\n"
-       << "# Atoms num, id cx cy cz mat lc hc\n"
-       << ns << "\n";
+   largeucf << "# Unit cell size:\n"
+            <<  sd.x*ucd.x << "\t"
+            <<  sd.y*ucd.y << "\t"
+            <<  sd.z*ucd.z << "\n"
+            << "# Unit cell vectors:\n"
+            << "1.0  0.0  0.0\n"
+            << "0.0  1.0  0.0\n"
+            << "0.0  0.0  1.0\n"
+            << "# Atoms num, id cx cy cz mat lc hc\n"
+            << ns << "\n";
 
    /* global id counter */
    int gid_counter = 0;
@@ -233,21 +236,21 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
             /* loop through unitcell atoms */
             for (int atom=0; atom<unitcell.size(); ++atom) {
 
-               atom_t tmp;
+               atom_t temp;
                vec_t uc;
                uc.x = i;
                uc.y = j;
                uc.z = k;
 
-               tmp.aid = unitcell[atom].aid;
-               tmp.gid = gid_counter;
+               temp.aid = unitcell[atom].aid;
+               temp.gid = gid_counter;
+               gid_counter ++;
 
-               tmp.element = unitcell[atom].element;
+               temp.element = unitcell[atom].element;
 
-               tmp.mat = unitcell[atom].mat;
+               temp.mat = unitcell[atom].mat;
 
                /*** cell tracking ***/
-
 
                if (  (i <  (sd.x+n_tracked_cells)*0.5)
                   && (i >= (sd.x-n_tracked_cells)*0.5)
@@ -258,36 +261,36 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
                   && (k <  (sd.z+n_tracked_cells)*0.5)
                   && (k >= (sd.z-n_tracked_cells)*0.5) ) {
 
-                  tmp.mat += n_materials;
-                  tmp.element = 'h';
+                  temp.mat += n_materials;
+                  temp.element = 'h';
                   tracked ++;
                }
 
-               tmp.pos = unitcell[atom].pos + uc*ucd;
-               gid_counter ++;
+               temp.pos = unitcell[atom].pos + uc*ucd;
 
                /* output coordinates to file */
-               sysmol << tmp.element << "\t"
-                      << tmp.pos.x << "\t"
-                      << tmp.pos.y << "\t"
-                      << tmp.pos.z << "\n";
+               sysmol << temp.element << "\t"
+                      << temp.pos.x << "\t"
+                      << temp.pos.y << "\t"
+                      << temp.pos.z << "\n";
 
                /* calculate atom coordinates within large system */
                vec_t sys_co;
-               sys_co.x = tmp.pos.x / double(ucd.x) / double(sd.x);
-               sys_co.y = tmp.pos.y / double(ucd.y) / double(sd.y);
-               sys_co.z = tmp.pos.z / double(ucd.z) / double(sd.z);
+               sys_co.x = temp.pos.x / double(ucd.x) / double(sd.x);
+               sys_co.y = temp.pos.y / double(ucd.y) / double(sd.y);
+               sys_co.z = temp.pos.z / double(ucd.z) / double(sd.z);
 
                /* output to unit cell file */
-               ucf << tmp.gid << "\t"
-                   << sys_co.x << "\t"
-                   << sys_co.y << "\t"
-                   << sys_co.z << "\t"
-                   << tmp.mat << "\t"
-                   << 0 << "\t"
-                   << 0 << "\n";
+               largeucf
+                  << temp.gid << "\t"
+                  << sys_co.x << "\t"
+                  << sys_co.y << "\t"
+                  << sys_co.z << "\t"
+                  << temp.mat << "\t"
+                  << 0 << "\t"
+                  << 0 << "\n";
 
-               system[i][j][k].push_back(tmp);
+               system[i][j][k].push_back(temp);
 
             }
          }
@@ -297,7 +300,7 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
    std::cout << "total tracked atoms: " << tracked << "\n";
    std::cout << "total tracked cells (3D): " << tracked/unitcell.size() << "\n";
 
-   ucf << "# interactions n exctype, id i j dx dy dz Jij\n";
+   largeucf << "# interactions n exctype, id i j dx dy dz Jij\n";
 
    /*******************************************************/
    /**  determine interactions for every atom in system  **/
@@ -324,22 +327,22 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
       /* if interaction info refers to correct atom */
       if (system[i][j][k][atom].aid == uc_interactions[p].i.aid) {
 
-         int_t tmp;
+         int_t temp;
 
-         tmp.iid = int_counter;
-         tmp.i.gid = system[i][j][k][atom].gid;
+         temp.iid = int_counter;
+         temp.i.gid = system[i][j][k][atom].gid;
 
-         tmp.i.mat = system[i][j][k][atom].mat;
-         tmp.i.element = system[i][j][k][atom].element;
+         temp.i.mat = system[i][j][k][atom].mat;
+         temp.i.element = system[i][j][k][atom].element;
 
-         tmp.j.element = uc_interactions[p].j.element;
+         temp.j.element = uc_interactions[p].j.element;
 
-         tmp.exchange = uc_interactions[p].exchange;
+         temp.exchange = uc_interactions[p].exchange;
 
          /* assume atom j is within system to begin with */
-         tmp.disp.x = 0;
-         tmp.disp.y = 0;
-         tmp.disp.z = 0;
+         temp.disp.x = 0;
+         temp.disp.y = 0;
+         temp.disp.z = 0;
 
          /* check if atom j is within system boundaries */
          int ucx = i + uc_interactions[p].disp.x;
@@ -357,57 +360,57 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
             /* periodic boundaries conditions */
             if ( ucx < 0 ) {
                ucx += sd.x;
-               tmp.disp.x = -1;
+               temp.disp.x = -1;
 
                   //    // determine mat of atom j
-                  //    if (tmp.i.mat==5)
+                  //    if (temp.i.mat==5)
                   //    {
-                  //        if (tmp.j.element=="Nd") tmp.j.mat = 5;
-                  //        else tmp.j.mat = 6;
+                  //        if (temp.j.element=="Nd") temp.j.mat = 5;
+                  //        else temp.j.mat = 6;
                   //    }
                   //
-                  //    else if (tmp.i.mat==6)
+                  //    else if (temp.i.mat==6)
                   //    {
-                  //        if (tmp.j.element=="Fe") tmp.j.mat = 6;
-                  //        else tmp.j.mat = 5;
+                  //        if (temp.j.element=="Fe") temp.j.mat = 6;
+                  //        else temp.j.mat = 5;
                   //    }
 
             }
 
             if ( ucy < 0 ) {
                  ucy += sd.y;
-                 tmp.disp.y = -1;
+                 temp.disp.y = -1;
             }
 
             if ( ucz < 0 ) {
                  ucz += sd.z;
-                 tmp.disp.z = -1;
+                 temp.disp.z = -1;
             }
 
             if ( ucx >= sd.x ) {
                  ucx -= sd.x;
-                 tmp.disp.x = 1;
+                 temp.disp.x = 1;
             }
 
             if ( ucy >= sd.y ) {
                  ucy -= sd.y;
-                 tmp.disp.y = 1;
+                 temp.disp.y = 1;
             }
 
             if ( ucz >= sd.z ) {
                  ucz -= sd.z;
-                 tmp.disp.z = 1;
+                 temp.disp.z = 1;
             }
 
             /* having changed uc coordinates obtain j.gid */
-            tmp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+            temp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
 
          }
 
          /* else it is within bounds so simply extract j.gid */
-         else tmp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+         else temp.j.gid = system[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
 
-         interactions.push_back(tmp);
+         interactions.push_back(temp);
 
          /* increment interaction id */
          int_counter ++;
@@ -416,12 +419,12 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
 
       std::cout << "number of interactions in system: " << interactions.size() << "\n\n";
 
-      ucf << interactions.size() << "\tisotropic\n";
+      largeucf << interactions.size() << "\tisotropic\n";
 
       // output interaction info to file
       for (int i=0; i<interactions.size(); i++)
 
-      ucf << interactions[i].iid << "\t"
+      largeucf << interactions[i].iid << "\t"
           << interactions[i].i.gid << "\t"
           << interactions[i].j.gid << "\t"
           << interactions[i].disp.x << "\t"
@@ -430,7 +433,7 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
           << interactions[i].exchange << "\n";
    }
 
-   ucf.close();
+   largeucf.close();
 
    return EXIT_SUCCESS;
 }
@@ -445,7 +448,7 @@ vec_t get_uc_dimensions_from_zr_content(double zrconcentration) {
     c *= 4.687;
 
     vec_t ucd;
-    ucd.x = a*2;
+    ucd.x = a;
     ucd.y = a;
     ucd.z = c;
     return ucd;
@@ -526,64 +529,22 @@ void populate_supercell() {
 
 }
 
-void populate_supercell_using_expanded_unitcell() {
-
-   /* loop through dimensions */
-   for (int i=0; i<3; i++)
-      for (int j=0; j<3; j++)
-         for (int k=0; k<3; k++)
-
-            /* loop through atoms in unitcell */
-            for (int atom=0; atom<expanded.size(); atom++) {
-
-               atom_t temp;
-               vec_t uc;
-               uc.x = i;
-               uc.y = j;
-               uc.z = k;
-
-               temp.aid = expanded[atom].aid;
-               temp.element = expanded[atom].element;
-               temp.mat = expanded[atom].mat;
-
-               /* replicate unitcell atoms */
-               temp.pos = expanded[atom].pos + (uc * ucd);
-
-               /* label unitcell coordinates */
-               temp.uc = uc;
-
-               /* dummy values for unneeded struct elements */
-               temp.hcat = 0;
-               temp.gid = 0;   // this isn't needed yet as the calculations are generated for a large system later
-
-               /* place atom in array */
-               supercell.push_back(temp);
-            }
-
-   std::cout << "atoms in super cell: "
-             << supercell.size() << std::endl;
-
-   array_to_rasmol(supercell, "supercell");
-
-}
-
-int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, double rcut, double zrconcentration) {
+int calculate_interactions(int exchange_fn, parameter_t system) {
 
    std::cout << "\ncreating and populating super cell...\n";
 
-   if (zrconcentration !=0) populate_supercell_using_expanded_unitcell();
+   if (system.zrdoping) populate_supercell_using_expanded_unitcell();
    else populate_supercell();
 
    std::cout << "calculating interactions...\n\n";
 
    if (exchange_fn == 2)
       std::cout <<
-         "TM-TM exchange factor = " << tt_factor << "\n" <<
-         "RE-TM exchange factor = " << rt_factor << "\n";
+         "TM-TM exchange factor = " << system.tt_factor << "\n" <<
+         "RE-TM exchange factor = " << system.rt_factor << "\n";
 
-   /* central cell location */
-   int start = (supercell.size()-unitcell.size())/2;
-   int end   = (supercell.size()+unitcell.size())/2;
+   int start;
+   int end;
 
    int interaction_count = 0;
    int fefe_interaction_count = 0;
@@ -593,61 +554,134 @@ int calculate_interactions(int exchange_fn, double tt_factor, double rt_factor, 
    double total_fefe_neighbour_distance = 0;
    double total_refe_neighbour_distance = 0;
 
-   /* loop through central cell */
-   for (int i=start; i<end; ++i) {
+   if (system.zrdoping) {
 
-      /* loop through super cell (looking for atom j) */
-      for (int j=0; j<supercell.size(); ++j) {
+      /* central cell location */
+      start = (expanded_sc.size()-expanded_uc.size())/2;
+      end   = (expanded_sc.size()+expanded_uc.size())/2;
 
-         /* calculate interatomic distance */
-         double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
+      /* loop through central cell */
+      for (int i=start; i<end; ++i) {
 
-         /* if distance less than rcut and not same atom */
-         if (rij < rcut && rij > 1e-30) {
+         /* loop through super cell (looking for atom j) */
+         for (int j=0; j<expanded_sc.size(); ++j) {
 
-            /* add neighbour distance to total */
-            total_neighbour_distance += rij;
+            /* calculate interatomic distance */
+            double rij = calculate_rij(expanded_sc[i].pos, expanded_sc[j].pos);
 
-            /* create an interaction */
-            int_t temp;
-            temp.i = supercell[i];
-            temp.j = supercell[j];
+            /* if distance less than rcut and not same atom */
+            if (rij < system.rcut && rij > 1e-30) {
 
-            temp.iid = interaction_count;
+               /* add neighbour distance to total */
+               total_neighbour_distance += rij;
 
-            /* unitcell displacement */
-            temp.disp = temp.j.uc - temp.i.uc;
+               /* create an interaction */
+               int_t temp;
+               temp.i = expanded_sc[i];
+               temp.j = expanded_sc[j];
 
-            /* calculate exchange energy */
-            temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, tt_factor, rt_factor, exchange_fn);
+               temp.iid = interaction_count;
 
-            /* put interaction into array */
-            if (temp.exchange!=0) {
+               /* unitcell displacement */
+               temp.disp = temp.j.uc - temp.i.uc;
 
-               uc_interactions.push_back(temp);
-               interaction_count ++;
+               /* calculate exchange energy */
+               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, exchange_fn);
 
-               if (
-                     (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
-                     (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe")
-                  ) {
+               /* put interaction into array */
+               if (temp.exchange!=0) {
 
-                  fefe_interaction_count ++;
-                  total_fefe_neighbour_distance += rij;
+                  uc_interactions.push_back(temp);
+                  interaction_count ++;
+
+                  if (
+                        (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                        (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe")
+                     ) {
+
+                     fefe_interaction_count ++;
+                     total_fefe_neighbour_distance += rij;
+                  }
+
+                  else if (
+                        ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                         (temp.j.element == "Sm" || temp.j.element == "Nd"))
+                        ||
+                        ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe") &&
+                         (temp.i.element == "Sm" || temp.i.element == "Nd"))
+                        ) {
+                     refe_interaction_count ++;
+                     total_refe_neighbour_distance += rij;
+                  }
                }
 
-               else if (
-                     ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
-                     (temp.j.element == "Sm" || temp.j.element == "Nd"))
-                     ||
-                     ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe") &&
-                     (temp.i.element == "Sm" || temp.i.element == "Nd"))
-                       ) {
-                  refe_interaction_count ++;
-                  total_refe_neighbour_distance += rij;
+            } /* end of 'if atom within range' */
+         }
+      }
+   }
+
+   /* no zr doping branch */
+   else {
+
+      start = (supercell.size()-unitcell.size())/2;
+      end   = (supercell.size()+unitcell.size())/2;
+
+      /* loop through central cell */
+      for (int i=start; i<end; ++i) {
+
+         /* loop through super cell (looking for atom j) */
+         for (int j=0; j<supercell.size(); ++j) {
+
+            /* calculate interatomic distance */
+            double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
+
+            /* if distance less than rcut and not same atom */
+            if (rij < system.rcut && rij > 1e-30) {
+
+               /* add neighbour distance to total */
+               total_neighbour_distance += rij;
+
+               /* create an interaction */
+               int_t temp;
+               temp.i = supercell[i];
+               temp.j = supercell[j];
+
+               temp.iid = interaction_count;
+
+               /* unitcell displacement */
+               temp.disp = temp.j.uc - temp.i.uc;
+
+               /* calculate exchange energy */
+               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, exchange_fn);
+
+               /* put interaction into array */
+               if (temp.exchange!=0) {
+
+                  uc_interactions.push_back(temp);
+                  interaction_count ++;
+
+                  if (
+                        (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                        (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe")
+                     ) {
+
+                     fefe_interaction_count ++;
+                     total_fefe_neighbour_distance += rij;
+                  }
+
+                  else if (
+                        ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                         (temp.j.element == "Sm" || temp.j.element == "Nd"))
+                        ||
+                        ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe") &&
+                         (temp.i.element == "Sm" || temp.i.element == "Nd"))
+                        ) {
+                     refe_interaction_count ++;
+                     total_refe_neighbour_distance += rij;
+                  }
                }
+
             }
-
          }
       }
    }
@@ -899,180 +933,190 @@ double calculate_rij (vec_t& i, vec_t& j) {
     return distance;
 }
 
-int expand_unitcell_and_substitute_zr_atoms(double zrconcentration) {
-
-   std::cout << "expanding unitcell and substituting zr atoms.\n";
-
-   int atom_counter = 0;
-
-   /* reset atom count array */
-   for (int i=0; i<material_specific_atom_count.size(); ++i)
-      material_specific_atom_count[i] = 0;
-
-   /* add one more array element for Zr */
-   material_specific_atom_count.push_back(0);
-
-   material_t new_material;
-   new_material.name = "Zr";
-   new_material.id = materials.size()-1;
-
-   materials.push_back(new_material);
-   /**/
-
-   /* replicate unit cell in 3-dimensions */
-   for (int i=0; i<3; ++i)
-      for (int j=0; j<3; ++j)
-         for (int k=0; k<3; ++k)
-
-            for (int atom=0; atom<unitcell.size(); ++atom) {
-
-               atom_t temp;
-
-               temp.element = unitcell[atom].element;
-
-               /* this is the only thing that should be different from the unitcell */
-               temp.pos.x = unitcell[atom].pos.x + i * ucd.x;
-               temp.pos.y = unitcell[atom].pos.y + j * ucd.y;
-               temp.pos.z = unitcell[atom].pos.z + k * ucd.z;
-
-               temp.uc.x = i;
-               temp.uc.y = j;
-               temp.uc.z = k;
-
-               temp.aid = atom_counter;
-               atom_counter ++;
-
-               temp.hcat = unitcell[atom].hcat;
-
-               temp.mat = unitcell[atom].mat;
-               temp.fe = unitcell[atom].fe;
-
-               /* substitute Sm with Zr if random number is below Zr concentration */
-               if (temp.element == "Sm") {
-
-                  if ((rand() % 100) < zrconcentration*100) {
-                     temp.element = "Zr";
-                     temp.mat = materials.size()-1;
-                  }
-
-               }
-
-               /* add one to material specific atom count */
-               material_specific_atom_count[temp.mat] ++;
-
-               expanded.push_back(temp);
-            }
-
-   std::cout << "\nexpanded material array:\n\n";
-   output_materials(materials, material_specific_atom_count, expanded.size());
-
-   std::cout << "expanded unitcell contains " << expanded.size() << " atoms" << std::endl;
-
-   return EXIT_SUCCESS;
-}
-
-int generate_domain_wall_system(vec_t dw_dim) {
+int generate_domain_wall_system(vec_t dw_dim, bool zrdoping) {
 
    std::cout << "initialising domain wall system\n\n";
 
    /* determine dimensions of system in unitcells */
-   /* for long system in x */
-   vec_t sd_in_nm;
-   dw_dim.x = 15;
-   dw_dim.y = 3;
-   dw_dim.z = 3;
-
    /* for long system in z
       x = 2 nm
       y = 2 nm
       z = 12 nm */
 
-   vec_t sd; /* system dimensions in unitcells */
-   sd.x = floor(dw_dim.x*10.0/ucd.x+0.5);
-   sd.y = floor(dw_dim.y*10.0/ucd.y+0.5);
-   sd.z = floor(dw_dim.z*10.0/ucd.z+0.5);
+   std::ofstream dwucf ("domainwall.ucf");
+   vec_t sd; /* system dimensions in unitcells (dw_dim comes from input file and is in nm) */
 
-   std::cout << "dimensions of domain wall system: ";
-   std::cout << dw_dim.x << " x " << dw_dim.y << " x " << dw_dim.z << " unitcells\n";
+   if (zrdoping) {
 
-   int ns = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
-   std::cout << "number of atoms in system: " << ns << "\n";
+      sd.x = floor(dw_dim.x*10.0/exp_ucd.x+0.5);
+      sd.y = floor(dw_dim.y*10.0/exp_ucd.y+0.5);
+      sd.z = floor(dw_dim.z*10.0/exp_ucd.z+0.5);
 
-   std::ofstream ucf ("domainwall.ucf");
+      std::cout << "dimensions of domain wall system: ";
+      std::cout << dw_dim.x << " x " << dw_dim.y << " x " << dw_dim.z << " nm\n";
 
-   /* output coordinates to unit cell file */
-   ucf << "# Unit cell size:\n"
-       <<  sd.x*ucd.x << "\t"
-       <<  sd.y*ucd.y << "\t"
-       <<  sd.z*ucd.z << "\n"
-       << "# Unit cell vectors:\n"
-       << "1.0  0.0  0.0\n"
-       << "0.0  1.0  0.0\n"
-       << "0.0  0.0  1.0\n"
-       << "# Atoms num, id cx cy cz mat lc hc\n"
-       << ns << "\n";
+      int natoms = sd.x * sd.y * sd.z * expanded_uc.size(); // number of atoms in system
+      std::cout << "number of atoms in system: " << natoms << "\n";
 
-   /* global id counter */
-   int gid_counter = 0;
+      /* output coordinates to unit cell file */
+      dwucf << "# Unit cell size:\n"
+         <<  sd.x * exp_ucd.x << "\t"
+         <<  sd.y * exp_ucd.y << "\t"
+         <<  sd.z * exp_ucd.z << "\n"
+         << "# Unit cell vectors:\n"
+         << "1.0  0.0  0.0\n"
+         << "0.0  1.0  0.0\n"
+         << "0.0  0.0  1.0\n"
+         << "# Atoms num, id cx cy cz mat lc hc\n"
+         << natoms << "\n";
 
-   /* open file for rasmol output of system */
-   std::ofstream sysmol ("domainwall.xyz");
-   sysmol << ns << "\n\n";
+      /* global id counter */
+      int gid_counter = 0;
 
-   /* resize vectors */
-   domainwallsystem.resize(sd.x);
-   for (int i=0; i<sd.x; i++) {
-      domainwallsystem[i].resize(sd.y);
-      for (int j=0; j<sd.y; j++) {
-         domainwallsystem[i][j].resize(sd.z);
-         for (int k=0; k<sd.z; k++) {
+      /* open file for rasmol output of system */
+      std::ofstream sysmol ("domainwall.xyz");
+      sysmol << natoms << "\n\n";
 
-            /* loop through unitcell atoms */
-            for (int atom=0; atom<unitcell.size(); ++atom) {
+      /* resize vectors */
+      domainwallsystem.resize(sd.x);
+      for (int i=0; i<sd.x; i++) {
+         domainwallsystem[i].resize(sd.y);
+         for (int j=0; j<sd.y; j++) {
+            domainwallsystem[i][j].resize(sd.z);
+            for (int k=0; k<sd.z; k++) {
 
-               atom_t tmp;
-               vec_t uc;
-               uc.x = i;
-               uc.y = j;
-               uc.z = k;
+               /* loop through unitcell atoms */
+               for (int atom=0; atom<expanded_uc.size(); ++atom) {
 
-               tmp.aid = unitcell[atom].aid;
-               tmp.gid = gid_counter;
+                  atom_t tmp;
+                  vec_t uc;
+                  uc.x = i;
+                  uc.y = j;
+                  uc.z = k;
 
-               tmp.element = unitcell[atom].element;
+                  tmp.aid = expanded_uc[atom].aid;
+                  tmp.gid = gid_counter;
 
-               tmp.mat = unitcell[atom].mat;
+                  tmp.element = expanded_uc[atom].element;
 
-               tmp.pos = unitcell[atom].pos + uc*ucd;
-               gid_counter ++;
+                  tmp.mat = expanded_uc[atom].mat;
 
-               /* calculate atom coordinates within large system */
-               vec_t sys_coord;
-               sys_coord.x = tmp.pos.x / double(ucd.x) / double(sd.x);
-               sys_coord.y = tmp.pos.y / double(ucd.y) / double(sd.y);
-               sys_coord.z = tmp.pos.z / double(ucd.z) / double(sd.z);
+                  tmp.pos = expanded_uc[atom].pos + uc * exp_ucd;
+                  gid_counter ++;
 
-               /* we want to split the system into two halves */
-               if (uc.x > (sd.x-1)/2) {
-                  tmp.mat += materials.size();
+                  /* calculate atom coordinates within large system */
+                  vec_t sys_coord;
+                  sys_coord.x = tmp.pos.x / double(exp_ucd.x) / double(sd.x);
+                  sys_coord.y = tmp.pos.y / double(exp_ucd.y) / double(sd.y);
+                  sys_coord.z = tmp.pos.z / double(exp_ucd.z) / double(sd.z);
+
+                  /* we want to split the system into two halves */
+                  if (uc.x > (sd.x-1)/2) {
+                     tmp.mat += materials.size();
+                  }
+
+                  /* output to unit cell file */
+                  dwucf << tmp.gid << "\t"
+                     << sys_coord.x << "\t"
+                     << sys_coord.y << "\t"
+                     << sys_coord.z << "\t"
+                     << tmp.mat << "\t"
+                     << 0 << "\t"
+                     << 0 << "\n";
+
+                  domainwallsystem[i][j][k].push_back(tmp);
                }
-
-               /* output to unit cell file */
-               ucf << tmp.gid << "\t"
-                   << sys_coord.x << "\t"
-                   << sys_coord.y << "\t"
-                   << sys_coord.z << "\t"
-                   << tmp.mat << "\t"
-                   << 0 << "\t"
-                   << 0 << "\n";
-
-               domainwallsystem[i][j][k].push_back(tmp);
             }
          }
       }
    }
 
-   ucf << "# interactions n exctype, id i j dx dy dz Jij\n";
+   else {
+
+      sd.x = floor(dw_dim.x*10.0/ucd.x+0.5);
+      sd.y = floor(dw_dim.y*10.0/ucd.y+0.5);
+      sd.z = floor(dw_dim.z*10.0/ucd.z+0.5);
+
+      std::cout << "dimensions of domain wall system: ";
+      std::cout << dw_dim.x << " x " << dw_dim.y << " x " << dw_dim.z << " nm\n";
+
+      int natoms = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
+      std::cout << "number of atoms in system: " << natoms << "\n";
+
+      /* output coordinates to unit cell file */
+      dwucf << "# Unit cell size:\n"
+         <<  sd.x*ucd.x << "\t"
+         <<  sd.y*ucd.y << "\t"
+         <<  sd.z*ucd.z << "\n"
+         << "# Unit cell vectors:\n"
+         << "1.0  0.0  0.0\n"
+         << "0.0  1.0  0.0\n"
+         << "0.0  0.0  1.0\n"
+         << "# Atoms num, id cx cy cz mat lc hc\n"
+         << natoms << "\n";
+
+      /* global id counter */
+      int gid_counter = 0;
+
+      /* open file for rasmol output of system */
+      std::ofstream sysmol ("domainwall.xyz");
+      sysmol << natoms << "\n\n";
+
+      /* resize vectors */
+      domainwallsystem.resize(sd.x);
+      for (int i=0; i<sd.x; i++) {
+         domainwallsystem[i].resize(sd.y);
+         for (int j=0; j<sd.y; j++) {
+            domainwallsystem[i][j].resize(sd.z);
+            for (int k=0; k<sd.z; k++) {
+
+               /* loop through unitcell atoms */
+               for (int atom=0; atom<unitcell.size(); ++atom) {
+
+                  atom_t tmp;
+                  vec_t uc;
+                  uc.x = i;
+                  uc.y = j;
+                  uc.z = k;
+
+                  tmp.aid = unitcell[atom].aid;
+                  tmp.gid = gid_counter;
+
+                  tmp.element = unitcell[atom].element;
+
+                  tmp.mat = unitcell[atom].mat;
+
+                  tmp.pos = unitcell[atom].pos + uc*ucd;
+                  gid_counter ++;
+
+                  /* calculate atom coordinates within large system */
+                  vec_t sys_coord;
+                  sys_coord.x = tmp.pos.x / double(ucd.x) / double(sd.x);
+                  sys_coord.y = tmp.pos.y / double(ucd.y) / double(sd.y);
+                  sys_coord.z = tmp.pos.z / double(ucd.z) / double(sd.z);
+
+                  /* we want to split the system into two halves */
+                  if (uc.x > (sd.x-1)/2) {
+                     tmp.mat += materials.size();
+                  }
+
+                  /* output to unit cell file */
+                  dwucf << tmp.gid << "\t"
+                     << sys_coord.x << "\t"
+                     << sys_coord.y << "\t"
+                     << sys_coord.z << "\t"
+                     << tmp.mat << "\t"
+                     << 0 << "\t"
+                     << 0 << "\n";
+
+                  domainwallsystem[i][j][k].push_back(tmp);
+               }
+            }
+         }
+      }
+   }
+
+   dwucf << "# interactions n exctype, id i j dx dy dz Jij\n";
 
    /*******************************************************/
    /**  determine interactions for every atom in system  **/
@@ -1085,13 +1129,17 @@ int generate_domain_wall_system(vec_t dw_dim) {
    /* interaction counter */
    int int_counter = 0;
 
+   int unitcell_size;
+   if (zrdoping) unitcell_size = expanded_uc.size();
+   else unitcell_size = unitcell.size();
+
    /* loop through every atom in system */
    for (int i=0; i<sd.x; i++) {
       for (int j=0; j<sd.y; j++) {
          for (int k=0; k<sd.z; k++) {
 
             /* first atom */
-            for (int atom=0; atom<unitcell.size(); atom++) {
+            for (int atom=0; atom<unitcell_size; atom++) {
 
                /* loop through interaction information */
                for (int p=0; p<uc_interactions.size(); p++) {
@@ -1197,23 +1245,23 @@ int generate_domain_wall_system(vec_t dw_dim) {
 
    // std::cout << "number of interactions in system: " << interactions.size() << "\n\n";
 
-   ucf << interactions.size() << "\tisotropic\n";
+   dwucf << interactions.size() << "\tisotropic\n";
 
    // output interaction info to file
    for (int i=0; i<interactions.size(); i++)
 
-      ucf << interactions[i].iid << "\t"
-         << interactions[i].i.gid << "\t"
-         << interactions[i].j.gid << "\t"
-         << interactions[i].disp.x << "\t"
-         << interactions[i].disp.y << "\t"
-         << interactions[i].disp.z << "\t"
-         << interactions[i].exchange << "\n";
+      dwucf << interactions[i].iid << "\t"
+            << interactions[i].i.gid << "\t"
+            << interactions[i].j.gid << "\t"
+            << interactions[i].disp.x << "\t"
+            << interactions[i].disp.y << "\t"
+            << interactions[i].disp.z << "\t"
+            << interactions[i].exchange << "\n";
 
    std::cout << "number of interactions found: " << interactions.size() << std::endl;
    std::cout << "interaction data output to file 'domainwall.ucf'\n";
 
-   ucf.close();
+   dwucf.close();
 
    return EXIT_SUCCESS;
 }
