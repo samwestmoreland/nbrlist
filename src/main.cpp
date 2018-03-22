@@ -804,6 +804,9 @@ double calculate_jij(std::string const& i_type,
          double b = 1.72543313196278;
          double c = 1e-21;
 
+         double smfe12_tt_factor = 0.65;
+         double smfe12_rt_factor = 0.20;
+
          /* Sm-Sm */
          if(i_type=="Sm" && j_type=="Sm") return 0.0;
 
@@ -815,7 +818,7 @@ double calculate_jij(std::string const& i_type,
              (i_type=="Fe8f" && j_type=="Sm") ||
              (i_type=="Sm" && j_type=="Fe8f") ) {
 
-            if (rij<=4.0) return rt_factor * c*(a/(rij*rij*rij)-b);
+            if (rij<=4.0) return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
             else return 0.0;
          }
 
@@ -830,7 +833,7 @@ double calculate_jij(std::string const& i_type,
                   (i_type=="Fe8f" && j_type=="Fe8j") ||
                   (i_type=="Fe8f" && j_type=="Fe8f"))
 
-            return tt_factor * c*(a/(rij*rij*rij)-b);
+            return smfe12_tt_factor * c*(a/(rij*rij*rij)-b);
 
          else return 0.0;
       }
