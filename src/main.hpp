@@ -5,7 +5,7 @@
 int convert_material_string_to_integer(std::string const& material);
 double calculate_rij(vec_t& i, vec_t& j);     /* distance calculation */
 double jij_ndfeb(std::string const& i_type, std::string const& j_type, double rij);
-int calculate_interactions(int exchange_fn, parameter_t system);
+int calculate_interactions(parameter_t system);
 vec_t get_uc_dimensions_from_zr_content(double zrconcentration);
 int expand_unitcell_and_substitute_zr_atoms(double zrconcentration);
 int generate_domain_wall_system(vec_t dw_dim, bool zrdoping);

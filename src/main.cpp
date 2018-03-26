@@ -27,8 +27,6 @@ int main (int argc, char *argv[]) {
    int system_dimension = 0;
    int n_tracked_cells = 0;
 
-   int exchange_fn;
-
    /* default parameters */
    parameter_t system;
    system.domainwall = false;
@@ -37,13 +35,12 @@ int main (int argc, char *argv[]) {
    /* read parameters from input file */
    system = parse_input("ucf_inputfile");
 
-   exchange_fn = system.material_int;
-
    // if (system.tracking) {
    //    system_dimension = ask_for_system_dimensions(system_dimension);
    //    n_tracked_cells = ask_for_n_tracked_cells(n_tracked_cells);
    // }
 
+   /* exit program if material not recognised */
    if (system.material_int > 7 || system.material_int < 1) {
       std::cout << "invalid material. exiting.\n";
       exit(EXIT_SUCCESS);
@@ -71,12 +68,12 @@ int main (int argc, char *argv[]) {
 
    array_to_rasmol(unitcell, "unitcell");
 
-   /* if zr concentration != 0, the unitcell must be expanded to get even distribution */
-   if (system.zrconcentration != 0)
-      expand_unitcell_and_substitute_zr_atoms(system.zrconcentration);
+//   /* if zr concentration != 0, the unitcell must be expanded to get even distribution */
+//   if (system.zrconcentration != 0)
+//      expand_unitcell_and_substitute_zr_atoms(system.zrconcentration);
 
    /* this function generates a supercell, and using that populates an interactions array */
-   calculate_interactions(exchange_fn, system);
+   calculate_interactions(system);
 
    /**************************************/
    /*** calculate species interactions ***/
@@ -529,7 +526,7 @@ void populate_supercell() {
 
 }
 
-int calculate_interactions(int exchange_fn, parameter_t system) {
+int calculate_interactions(parameter_t system) {
 
    std::cout << "\ncreating and populating super cell...\n";
 
@@ -538,7 +535,7 @@ int calculate_interactions(int exchange_fn, parameter_t system) {
 
    std::cout << "calculating interactions...\n\n";
 
-   if (exchange_fn == 2)
+   if (system.material_int == 2)
       std::cout <<
          "TM-TM exchange factor = " << system.tt_factor << "\n" <<
          "RE-TM exchange factor = " << system.rt_factor << "\n";
@@ -586,7 +583,7 @@ int calculate_interactions(int exchange_fn, parameter_t system) {
                temp.disp = temp.j.uc - temp.i.uc;
 
                /* calculate exchange energy */
-               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, exchange_fn);
+               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, system.material_int);
 
                /* put interaction into array */
                if (temp.exchange!=0) {
@@ -652,7 +649,7 @@ int calculate_interactions(int exchange_fn, parameter_t system) {
                temp.disp = temp.j.uc - temp.i.uc;
 
                /* calculate exchange energy */
-               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, exchange_fn);
+               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, system.tt_factor, system.rt_factor, system.material_int);
 
                /* put interaction into array */
                if (temp.exchange!=0) {
