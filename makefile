@@ -19,7 +19,7 @@ DEPS := $(OBJS:.o=.d)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-CPPFLAGS ?= $(INC_FLGS) -MMD -MP
+CPPFLAGS ?= $(INC_FLGS) -MMD -MP -std=c++11
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(GCC) $(OBJS) -o $@ $(LDFLAGS)

@@ -10,7 +10,7 @@
 #include "./initialise.hpp"
 #include "./main.hpp"
 
-int initialise_material(int material_int, std::string const& material, double zrconcentration) {
+int initialise_material(int material_int, std::string const& material) {
 
    std::cout << "\ninitialising material \'" << material << "\'\n";
 
@@ -35,13 +35,16 @@ int initialise_material(int material_int, std::string const& material, double zr
          break;
 
       case 4 :    /* smfe12 */
-         ucd.x = 8.497;
-         ucd.y = 8.497;
-         ucd.z = 4.687;
+         if (sys.zrdoping == false) {
+            ucd.x = 8.497;
+            ucd.y = 8.497;
+            ucd.z = 4.687;
+         }
+         else ucd = get_uc_dimensions_from_zr_content(sys.zrconcentration);
          break;
 
       case 5 :    /* smzrfe12 */
-         ucd = get_uc_dimensions_from_zr_content(zrconcentration);
+         ucd = get_uc_dimensions_from_zr_content(sys.zrconcentration);
          break;
 
       case 6 :    /* interface */
@@ -58,8 +61,7 @@ int initialise_material(int material_int, std::string const& material, double zr
    }
 
    std::cout << std::endl;
-
-   std::string filename = generate_filename(material, zrconcentration);
+   std::string filename = generate_filename(material, sys.zrconcentration);
    std::ifstream infile (filename.c_str());
 
    /* check if file opened */
@@ -68,6 +70,8 @@ int initialise_material(int material_int, std::string const& material, double zr
       std::cerr   << "exiting" << std::endl;
       std::exit(EXIT_FAILURE);
    }
+
+   if (sys.zrdoping == true) std::cout << "(modified) ";
 
    std::cout
       << "unit cell dimensions: "
@@ -132,7 +136,7 @@ int initialise_material(int material_int, std::string const& material, double zr
       output atom informaton to ucf
    */
 
-   if (zrconcentration == 0) {
+   if (sys.zrdoping == false) {
       outfile.open("output.ucf");
 
       outfile

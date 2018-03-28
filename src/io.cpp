@@ -7,9 +7,7 @@
 #include "./data.hpp"
 #include "./io.hpp"
 
-parameter_t parse_input (std::string const& inputfile) {
-
-   parameter_t system;
+void parse_input (std::string const& inputfile) {
 
    std::ifstream fin;
    fin.open(inputfile.c_str());
@@ -19,8 +17,6 @@ parameter_t parse_input (std::string const& inputfile) {
        std::cout << "no input file found. program exiting." << std::endl;
        exit(EXIT_FAILURE);
    }
-   else
-      std::cout << "reading parameters from file '" << inputfile << "'" << std::endl;
 
    std::string line;
 
@@ -56,34 +52,30 @@ parameter_t parse_input (std::string const& inputfile) {
       /* loop through characters after equals sign */
       for (int i=endvar; i<line.length(); ++i) val.push_back(line.at(i));
 
-      if (key == "cutoff") system.rcut = stof(val);
+      if (key == "cutoff") sys.rcut = stof(val);
 
-      else if (key == "tt_factor") system.tt_factor = stof(val);
-      else if (key == "rt_factor") system.rt_factor = stof(val);
+      else if (key == "tt_factor") sys.tt_factor = stof(val);
+      else if (key == "rt_factor") sys.rt_factor = stof(val);
 
       else if (key == "tracking") {
-         if (val == "false") system.tracking = false;
-         else if (val == "true") system.tracking = true;
+         if (val == "false") sys.tracking = false;
+         else if (val == "true") sys.tracking = true;
          else std::cout << "input parse error: i don't know what " << "\"" << val << "\" means\n";
       }
 
       else if (key == "material") {
-         system.material = val;
-         system.material_int = convert_material_string_to_integer(val);
-      }
-
-      else if (key == "config") {
-         system.config = val;
+         sys.material = val;
+         sys.material_int = convert_material_string_to_integer(val);
       }
 
       else if (key == "zrconcentration") {
-         system.zrconcentration = stof(val);
-         if (system.zrconcentration != 0) system.zrdoping = true;
+         sys.zrconcentration = stof(val);
+         if (sys.zrconcentration != 0) sys.zrdoping = true;
       }
 
       else if (key == "domainwall") {
-         if (val == "true") system.domainwall = true;
-         else if (val == "false") system.domainwall = false;
+         if (val == "true") sys.domainwall = true;
+         else if (val == "false") sys.domainwall = false;
          else {
             std::cout << "not sure what '" << val << "' means. exiting\n";
             exit(EXIT_FAILURE);
@@ -91,18 +83,18 @@ parameter_t parse_input (std::string const& inputfile) {
       }
 
       else if (key == "dwsystemdimensionx") {
-         system.domainwall = true;
-         system.dw_dim.x = stof(val);
+         sys.domainwall = true;
+         sys.dw_dim.x = stof(val);
       }
 
       else if (key == "dwsystemdimensiony") {
-         system.domainwall = true;
-         system.dw_dim.y = stof(val);
+         sys.domainwall = true;
+         sys.dw_dim.y = stof(val);
       }
 
       else if (key == "dwsystemdimensionz") {
-         system.domainwall = true;
-         system.dw_dim.z = stof(val);
+         sys.domainwall = true;
+         sys.dw_dim.z = stof(val);
       }
 
       else {
@@ -112,7 +104,6 @@ parameter_t parse_input (std::string const& inputfile) {
 
    }
 
-   return system;
 }
 
 int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms) {

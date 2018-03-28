@@ -45,7 +45,6 @@ struct parameter_t {
     bool tracking;
     double tt_factor;
     double rt_factor;
-    std::string config;
     double zrconcentration;
     bool domainwall;
     vec_t dw_dim;

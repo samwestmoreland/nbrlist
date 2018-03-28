@@ -3,7 +3,7 @@
 
 int convert_material_string_to_integer(std::string const& material);
 int determine_material_id(std::string const& in_material, std::vector<material_t>& materials);
-parameter_t parse_input (std::string const& inputfile);
+void parse_input (std::string const& inputfile);
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
 int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms);
 
