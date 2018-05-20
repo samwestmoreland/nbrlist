@@ -3,6 +3,14 @@
 
 #include <string>
 
+class lattparameters_t {
+   public:
+      int concentration;
+      double a;
+      double b;
+      double c;
+};
+
 class vec_t {
 public:
     double x;
@@ -47,8 +55,11 @@ struct parameter_t {
     double rt_factor;
     double zrconcentration;
     bool domainwall;
+    bool centrepin;
     vec_t dw_dim;
     bool zrdoping;
+    bool tidope;
+    int ticoncentration;
 };
 
 // class for all atoms in system

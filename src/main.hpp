@@ -21,8 +21,6 @@ int generate_large_system(std::vector<int_t>& uc_interactions,
 double calculate_jij(std::string const& i_type,
                      std::string const& j_type,
                      double rij,
-                     double tt_factor,
-                     double rt_factor,
                      int exchange_fn);
 
 #endif /* MAIN_H_ */

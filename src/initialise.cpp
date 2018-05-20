@@ -58,10 +58,20 @@ int initialise_material(int material_int, std::string const& material) {
          ucd.y = 26.181;
          ucd.z = 0;
          break;
+
+      case 8 :    /* smco12 */
+         ucd.x = 8.443068;
+         ucd.y = 8.443068;
+         ucd.z = 4.799171;    /* from connor */
+         break;
+
+      case 9 :    /* smfeti12 */
+         break;
+
    }
 
    std::cout << std::endl;
-   std::string filename = generate_filename(material, sys.zrconcentration);
+   std::string filename = generate_filename(material);
    std::ifstream infile (filename.c_str());
 
    /* check if file opened */
@@ -84,6 +94,7 @@ int initialise_material(int material_int, std::string const& material) {
 
    std::cout << "reading in unit cell coordinates from '" << filename << "'\n";
 
+   if (!(sys.tidope)) {
    while (infile
        >> temp.element
        >> temp.pos.x
@@ -124,6 +135,85 @@ int initialise_material(int material_int, std::string const& material) {
 
             unitcell.push_back(temp);
       }
+   }
+
+   else { /* ti doping read-in */
+
+      std::string latticeparametersfilename = "./lattice_parameters.dat";
+      std::ifstream latticeparametersfile (latticeparametersfilename);
+
+      lattparameters_t tmp;
+
+      std::vector<lattparameters_t> temporary_vector_of_lattparams;
+
+      if (latticeparametersfile.good()) {
+
+         while (latticeparametersfile
+               >> tmp.a
+               >> tmp.b
+               >> tmp.c) {
+
+            temporary_vector_of_lattparams.push_back(tmp);
+
+         }
+      }
+      else {
+
+         std::cout << "lattice parameters file " << latticeparametersfilename << " not found. exiting.\n";
+         exit(EXIT_FAILURE);
+
+      }
+
+      std::cout << temporary_vector_of_lattparams[sys.ticoncentration].a << "\t"
+                << temporary_vector_of_lattparams[sys.ticoncentration].b << "\t"
+                << temporary_vector_of_lattparams[sys.ticoncentration].c << "\t"
+                << std::endl;
+
+      while (infile
+          >> temp.element
+          >> temp.pos.x
+          >> temp.pos.y
+          >> temp.pos.z) {
+
+               /* assign atom id */
+               temp.aid = atom_count;
+               atom_count ++;
+
+               /* assign some dummy variables for unneeded struct elements */
+               temp.gid = 0;
+               temp.hcat = 0;
+               temp.uc.x = 0;
+               temp.uc.y = 0;
+               temp.uc.z = 0;
+
+               /* determine material id */
+               material_t temp_mat;
+               temp_mat.name = temp.element;
+               temp_mat.id = determine_material_id(temp_mat.name, materials);
+               temp.mat = temp_mat.id;
+
+               /* make sure material_specific_atom_count has correct number of elements */
+               if (temp_mat.id+1 > material_specific_atom_count.size())
+                  material_specific_atom_count.push_back(0);
+
+               /* add one to the material atom counter */
+               material_specific_atom_count[temp_mat.id] ++;
+
+               /* for material specific atom counting, determine if atom if Fe or not */
+               if (temp.element == "Fe8i" || temp.element == "Fe8j" || temp.element == "Fe8f" || temp.element == "Fe")
+                  temp.fe = true;
+               else temp.fe = false;
+
+               ucd.x = temporary_vector_of_lattparams[sys.ticoncentration].a;
+               ucd.y = temporary_vector_of_lattparams[sys.ticoncentration].b;
+               ucd.z = temporary_vector_of_lattparams[sys.ticoncentration].c;
+
+               /* scale atom coordinates */
+               temp.pos = temp.pos * ucd;
+
+               unitcell.push_back(temp);
+         }
+   }
 
    std::cout << "atoms read in: " << unitcell.size() << std::endl;
 
@@ -167,18 +257,22 @@ int initialise_material(int material_int, std::string const& material) {
 }
 
 /* function definition */
-std::string generate_filename(std::string const& material_string, double zrconcentration) {
+std::string generate_filename(std::string const& material_string) {
 
    std::string filename;
 
    /* convert double zrconcentration to string */
    std::ostringstream zr_strs;
-   zr_strs << zrconcentration;
+   zr_strs << sys.zrconcentration;
    std::string zr_string = zr_strs.str();
-   /**/
+   /*****/
 
    if (material_string == "smzrfe12")
       filename = "./coordinates/smfe12.coords";
+   else if (material_string == "smfeti12" || material_string == "ndfeti12" || material_string == "smcoti12") {
+      sys.tidope = true;
+      filename = "./" + std::to_string(sys.ticoncentration) + "percent.coords";
+   }
    else
       filename = "./coordinates/" + material_string + ".coords";
 

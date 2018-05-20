@@ -7,7 +7,7 @@
 
 TARGET_EXEC ?= nbrlist
 
-GCC = g++-7
+GCC = g++-8
 
 BUILD_DIR ?= ./build
 SRC_DIRS ?= src

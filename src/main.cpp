@@ -36,6 +36,8 @@ int main (int argc, char *argv[]) {
    sys.zrdoping = false;
    sys.zrconcentration = 0.0;
 
+   sys.tidope = false;
+
    /* read parameters from input file */
    parse_input("ucf_inputfile");
 
@@ -50,7 +52,7 @@ int main (int argc, char *argv[]) {
    // }
 
    /* exit program if material not recognised */
-   if (sys.material_int > 7 || sys.material_int < 1) {
+   if (sys.material_int > 9 || sys.material_int < 1) {
       std::cout << "invalid material. exiting.\n";
       exit(EXIT_SUCCESS);
    }
@@ -126,6 +128,24 @@ int main (int argc, char *argv[]) {
        std::cout << std::endl;
    }
 
+   std::cout << "\nexchange matrix (total)\n";
+
+   for (int i=0; i<materials.size(); ++i) {
+       for (int j=0; j<materials.size(); ++j) {
+          if (n_interactions[i][j] != 0) {
+
+             std::cout << species_interactions[i][j] << "\t";
+
+          }
+
+          else std::cout << "0.000000000" << "\t";
+       }
+
+       std::cout << std::endl;
+   }
+
+   std::cout << std::endl;
+
    std::cout << "\nexchange matrix (mean)\n";
 
    for (int i=0; i<materials.size(); ++i) {
@@ -176,6 +196,13 @@ int convert_material_string_to_integer(std::string const& material) {
    else if (material == "smzrfe12") material_int = 5;
    else if (material == "interface") material_int = 6;
    else if (material == "interface_mirror") material_int = 7;
+   else if (material == "smco12") material_int = 8;
+   else if (material == "smfeti12") material_int = 9;
+
+   else {
+      std::cout << "material not recognised. exiting.\n";
+      exit(EXIT_FAILURE);
+   }
 
    return material_int;
 }
@@ -537,22 +564,22 @@ int calculate_interactions() {
 
    std::cout << "calculating interactions...\n\n";
 
-   if (sys.material_int == 2)
+   if (sys.material_int == 2 || sys.material_int == 8)
       std::cout <<
          "TM-TM exchange factor = " << sys.tt_factor << "\n" <<
          "RE-TM exchange factor = " << sys.rt_factor << "\n";
 
+   /* first and last index of central unitcell */
    int start;
    int end;
 
    int interaction_count = 0;
-   int fefe_interaction_count = 0;
-   int refe_interaction_count = 0;
+   int tmtm_interaction_count = 0;
+   int retm_interaction_count = 0;
 
    double total_neighbour_distance = 0;
-   double total_fefe_neighbour_distance = 0;
-   double total_refe_neighbour_distance = 0;
-
+   double total_tmtm_neighbour_distance = 0;
+   double total_retm_neighbour_distance = 0;
 
       start = (supercell.size()-unitcell.size())/2;
       end   = (supercell.size()+unitcell.size())/2;
@@ -567,7 +594,7 @@ int calculate_interactions() {
             double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
 
             /* if distance less than rcut and not same atom */
-            if (rij < sys.rcut && rij > 1e-30) {
+            if (rij < sys.rcut && rij > 1e-10) {
 
                /* add neighbour distance to total */
                total_neighbour_distance += rij;
@@ -583,7 +610,7 @@ int calculate_interactions() {
                temp.disp = temp.j.uc - temp.i.uc;
 
                /* calculate exchange energy */
-               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, sys.tt_factor, sys.rt_factor, sys.material_int);
+               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, sys.material_int);
 
                /* put interaction into array */
                if (temp.exchange!=0) {
@@ -591,24 +618,26 @@ int calculate_interactions() {
                   uc_interactions.push_back(temp);
                   interaction_count ++;
 
+                  /* if interaction is fe-fe or fe-co */
                   if (
-                        (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
-                        (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe")
+                        (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe" || temp.i.element == "Co") &&
+                        (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe" || temp.j.element == "Co")
                      ) {
 
-                     fefe_interaction_count ++;
-                     total_fefe_neighbour_distance += rij;
+                     tmtm_interaction_count ++;
+                     total_tmtm_neighbour_distance += rij;
                   }
 
+                  /* if interaction is fe-re */
                   else if (
-                        ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe") &&
+                        ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe" || temp.i.element == "Co") &&
                          (temp.j.element == "Sm" || temp.j.element == "Nd"))
                         ||
-                        ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe") &&
+                        ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe" || temp.j.element == "Co") &&
                          (temp.i.element == "Sm" || temp.i.element == "Nd"))
                         ) {
-                     refe_interaction_count ++;
-                     total_refe_neighbour_distance += rij;
+                     retm_interaction_count ++;
+                     total_retm_neighbour_distance += rij;
                   }
                }
 
@@ -621,12 +650,12 @@ int calculate_interactions() {
          << uc_interactions.size() << std::endl;
 
       std::cout
-         << "fe-fe interactions: "
-         << fefe_interaction_count << std::endl;
+         << "tm-tm interactions: "
+         << tmtm_interaction_count << std::endl;
 
       std::cout
-         << "re-fe interactions: "
-         << refe_interaction_count << std::endl;
+         << "re-tm interactions: "
+         << retm_interaction_count << std::endl;
 
       std::cout << std::endl;
 
@@ -636,13 +665,13 @@ int calculate_interactions() {
          << " A" << std::endl;
 
       std::cout
-         << "mean fe-fe neighbour distance: "
-         << total_fefe_neighbour_distance/fefe_interaction_count
+         << "mean tm-tm neighbour distance: "
+         << total_tmtm_neighbour_distance/tmtm_interaction_count
          << " A" << std::endl;
 
       std::cout
          << "mean re-fe neighbour distance: "
-         << total_refe_neighbour_distance/refe_interaction_count
+         << total_retm_neighbour_distance/retm_interaction_count
          << " A" << std::endl;
 
       std::cout << std::endl;
@@ -670,8 +699,6 @@ int calculate_interactions() {
 double calculate_jij(std::string const& i_type,
                      std::string const& j_type,
                      double rij,
-                     double tt_factor,
-                     double rt_factor,
                      int exchange_fn) {
 
    switch (exchange_fn) {
@@ -686,45 +713,87 @@ double calculate_jij(std::string const& i_type,
       }
          break;
 
-      case 2 : // ndfeb
+      case 2 : { // ndfeb
 
-         return jij_ndfeb(i_type, j_type, rij);
-         break;
+         // return jij_ndfeb(i_type, j_type, rij);
+
+         double a = 121.00658;
+         double b = 1.72543313196278;
+         double c = 1e-21;
+
+         double ndfeb_tt_factor = sys.tt_factor;
+         double ndfeb_rt_factor = sys.rt_factor;
+
+         /* Nd-Nd */
+         if (i_type=="Nd" && j_type=="Nd") return 0.0;
+
+         /* Sm-Fe */
+         // if ((i_type=="Fe8i" && j_type=="Sm") ||
+         //     (i_type=="Sm" && j_type=="Fe8i") ||
+         //     (i_type=="Fe8j" && j_type=="Sm") ||
+         //     (i_type=="Sm" && j_type=="Fe8j") ||
+         //     (i_type=="Fe8f" && j_type=="Sm") ||
+         //     (i_type=="Sm" && j_type=="Fe8f") ) {
+         //
+         //
+         //    if (rij<=4.0) return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
+         //    else return 0.0;
+         // }
+
+
+         else if ((i_type == "Nd" && j_type == "Fe") ||
+                  (i_type == "Fe" && j_type == "Nd"))
+         {
+            return ndfeb_rt_factor * c*(a/(rij*rij*rij)-b);
+         }
+
+         // Fe-Fe (cutoff at r = 5.74A)
+         else if (i_type=="Fe" && j_type=="Fe")
+            return ndfeb_tt_factor * c*(a/(rij*rij*rij)-b);
+
+         else return 0.0;
+
+               }
+               break;
 
       case 3 : { // ndfe12
 
-         const double Fe_ratio = 1.2;      // loop from 1-2
-         const double J0Nd = Fe_ratio * 4.06835e-20/16.0;
+         double a = 121.00658;
+         double b = 1.72543313196278;
+         double c = 1e-21;
 
-         /* R-Fe exchange */
-         double RFeFraction = 0.2;         // loop from 0.0-1.0
+         double ndfe12_tt_factor = sys.tt_factor;
+         double ndfe12_rt_factor = sys.rt_factor;
 
-         /* Fe-Fe (cutoff at r = 5.74A) */
-         if (i_type == "Fe" && j_type == "Fe") {
+         /* Nd-Nd */
+         if(i_type=="Nd" && j_type=="Nd") return 0.0;
 
-            if ( rij <= 5.0 ) {
+         /* Nd-Fe */
+         if ((i_type=="Fe8i" && j_type=="Nd") ||
+             (i_type=="Nd" && j_type=="Fe8i") ||
+             (i_type=="Fe8j" && j_type=="Nd") ||
+             (i_type=="Nd" && j_type=="Fe8j") ||
+             (i_type=="Fe8f" && j_type=="Nd") ||
+             (i_type=="Nd" && j_type=="Fe8f") ) {
 
-               double a = 36.9434;
-               double b = 1.25094;
-               double c = -0.229572;
-
-               return 2.0*2.179872e-21 * (a*exp(-b*rij)+c) * Fe_ratio;
-            }
-
+            if (rij<=4.0) return ndfe12_rt_factor * c*(a/(rij*rij*rij)-b);
             else return 0.0;
          }
 
-         /* Nd-Fe (step function at r = 4A) */
-         else if ((i_type=="Fe" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe")) {
-            if (rij <= 4.0) return RFeFraction * J0Nd;       // ndfeb
+         // Fe-Fe (cutoff at r = 5.74A)
+         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
+                  (i_type=="Fe8i" && j_type=="Fe8j") ||
+                  (i_type=="Fe8i" && j_type=="Fe8f") ||
+                  (i_type=="Fe8j" && j_type=="Fe8i") ||
+                  (i_type=="Fe8j" && j_type=="Fe8j") ||
+                  (i_type=="Fe8j" && j_type=="Fe8f") ||
+                  (i_type=="Fe8f" && j_type=="Fe8i") ||
+                  (i_type=="Fe8f" && j_type=="Fe8j") ||
+                  (i_type=="Fe8f" && j_type=="Fe8f"))
 
-            else return 0.0;
-      	}
+            return ndfe12_tt_factor * c*(a/(rij*rij*rij)-b);
 
-    		/* Nd-Nd */
-      	else if ( i_type == "Nd" && j_type == "Nd" ) return 0.0;
-
-      	else return 0.0;
+         else return 0.0;
     	}
       	break;
 
@@ -786,7 +855,7 @@ double calculate_jij(std::string const& i_type,
              (i_type=="Fe8f" && j_type=="Sm") ||
              (i_type=="Sm" && j_type=="Fe8f") ) {
 
-            if (rij<=4.0) return rt_factor * c*(a/(rij*rij*rij)-b);
+            if (rij<=4.0) return sys.rt_factor * c*(a/(rij*rij*rij)-b);
             else return 0.0;
          }
 
@@ -801,7 +870,7 @@ double calculate_jij(std::string const& i_type,
                   (i_type=="Fe8f" && j_type=="Fe8j") ||
                   (i_type=="Fe8f" && j_type=="Fe8f"))
 
-            return tt_factor * c*(a/(rij*rij*rij)-b);
+            return sys.tt_factor * c*(a/(rij*rij*rij)-b);
 
          else return 0.0;
       }
@@ -816,6 +885,86 @@ double calculate_jij(std::string const& i_type,
 
          return jij_ndfeb(i_type, j_type, rij);
          break;
+
+      case 8 : { /* smco12 */
+
+         double a = 121.00658;
+         double b = 1.72543313196278;
+         double c = 1e-21;
+
+         double smco12_tt_factor = sys.tt_factor;
+         double smco12_rt_factor = sys.rt_factor;
+
+         /* Sm-Sm */
+         if(i_type=="Sm" && j_type=="Sm") return 0.0;
+
+         /* Sm-Co */
+         if ((i_type=="Co" && j_type=="Sm") || (i_type=="Sm" && j_type=="Co")) {
+            if (rij <= 4.0) return smco12_rt_factor * c*(a/(rij*rij*rij)-b);
+            else return 0.0;
+         }
+
+         // Co-Co
+         else if (i_type=="Co" && j_type=="Co")
+
+            return smco12_tt_factor * c*(a/(rij*rij*rij)-b);
+
+         else return 0.0;
+
+         }
+         break;
+
+      case 9 : { /* smfeti12 */
+
+         double a = 121.00658;
+         double b = 1.72543313196278;
+         double c = 1e-21;
+
+         double smfe12_tt_factor = sys.tt_factor;
+         double smfe12_rt_factor = sys.rt_factor;
+
+         /* Sm-Sm */
+         if(i_type=="Sm" && j_type=="Sm") return 0.0;
+
+         /* Sm-Fe */
+         if ((i_type=="Fe" && j_type=="Sm") ||
+             (i_type=="Sm" && j_type=="Fe")) {
+
+            return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
+         }
+
+         // Fe-Fe (cutoff at r = 5.74A)
+//         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
+//                  (i_type=="Fe8i" && j_type=="Fe8j") ||
+//                  (i_type=="Fe8i" && j_type=="Fe8f") ||
+//                  (i_type=="Fe8j" && j_type=="Fe8i") ||
+//                  (i_type=="Fe8j" && j_type=="Fe8j") ||
+//                  (i_type=="Fe8j" && j_type=="Fe8f") ||
+//                  (i_type=="Fe8f" && j_type=="Fe8i") ||
+//                  (i_type=="Fe8f" && j_type=="Fe8j") ||
+//                  (i_type=="Fe8f" && j_type=="Fe8f"))
+
+         else if ((i_type == "Fe" && j_type == "Fe"))
+            return smfe12_tt_factor * c*(a/(rij*rij*rij)-b);
+
+         else if ((i_type == "Ti" && j_type == "Ti"))
+            return 0.0;
+
+         else if ((i_type == "Ti" && j_type == "Sm"))
+            return 0.0;
+
+         else if ((i_type == "Sm" && j_type == "Ti"))
+            return 0.0;
+
+         else if ((i_type == "Ti" && j_type == "Fe"))
+            return 0.0;
+
+         else if ((i_type == "Fe" && j_type == "Ti"))
+            return 0.0;
+
+         else return 0.0;
+      }
+               break;
 
       default :
          std::cout << "invalid option. exiting.\n";
@@ -879,7 +1028,6 @@ int generate_domain_wall_system(vec_t dw_dim) {
    std::ofstream dwucf ("domainwall.ucf");
    vec_t sd; /* system dimensions in unitcells (dw_dim comes from input file and is in nm) */
 
-
    sd.x = floor(dw_dim.x*10.0/ucd.x+0.5);
    sd.y = floor(dw_dim.y*10.0/ucd.y+0.5);
    sd.z = floor(dw_dim.z*10.0/ucd.z+0.5);
@@ -908,6 +1056,8 @@ int generate_domain_wall_system(vec_t dw_dim) {
    /* open file for rasmol output of system */
    std::ofstream sysmol ("domainwall.xyz");
    sysmol << natoms << "\n\n";
+
+   if (sys.centrepin == false) {
 
    /* resize vectors */
    domainwallsystem.resize(sd.x);
@@ -963,6 +1113,88 @@ int generate_domain_wall_system(vec_t dw_dim) {
          }
       }
    }
+   }
+
+   else if (sys.centrepin == true) {
+
+   std::ofstream pinxyz ("pin.xyz");
+
+   int n_materials = materials.size();
+   n_materials *= 2;
+   int n_pin = 0;
+
+   /* resize vectors */
+   domainwallsystem.resize(sd.x);
+   for (int i=0; i<sd.x; i++) {
+      domainwallsystem[i].resize(sd.y);
+      for (int j=0; j<sd.y; j++) {
+         domainwallsystem[i][j].resize(sd.z);
+         for (int k=0; k<sd.z; k++) {
+
+            /* loop through unitcell atoms */
+            for (int atom=0; atom<unitcell.size(); ++atom) {
+
+               atom_t tmp;
+               vec_t uc;
+               uc.x = i;
+               uc.y = j;
+               uc.z = k;
+
+               tmp.aid = unitcell[atom].aid;
+               tmp.gid = gid_counter;
+
+               tmp.element = unitcell[atom].element;
+
+               tmp.mat = unitcell[atom].mat;
+
+               tmp.pos = unitcell[atom].pos + uc*ucd;
+               gid_counter ++;
+
+               tmp.hcat = i;
+
+               /* calculate atom coordinates within large system */
+               vec_t sys_coord;
+               sys_coord.x = tmp.pos.x / double(ucd.x) / double(sd.x);
+               sys_coord.y = tmp.pos.y / double(ucd.y) / double(sd.y);
+               sys_coord.z = tmp.pos.z / double(ucd.z) / double(sd.z);
+
+               /* pin the centre slice in-plane */
+               if (sys_coord.x > 0.49 && sys_coord.x < 0.51) {
+                  tmp.element = "H";
+                  n_pin ++;
+                  tmp.mat += materials.size();
+               }
+
+               /* we want to split the system into two halves */
+               if (sys_coord.x > 0.51) {
+                  tmp.mat += 2*materials.size();
+               }
+
+               pinxyz << tmp.element << "\t"
+                      << sys_coord.x << "\t"
+                      << sys_coord.y << "\t"
+                      << sys_coord.z << "\n";
+
+               /* output to unit cell file */
+               dwucf << tmp.gid << "\t"
+                  << sys_coord.x << "\t"
+                  << sys_coord.y << "\t"
+                  << sys_coord.z << "\t"
+                  << tmp.mat << "\t"
+                  << 0 << "\t"
+                  << tmp.hcat << "\n";
+
+               domainwallsystem[i][j][k].push_back(tmp);
+            }
+         }
+      }
+   }
+
+   std::cout << "number of pinned atoms: " << n_pin << ", " <<
+                n_pin/float(natoms)*100 << "% of atoms" << std::endl;
+
+   }
+
 
    dwucf << "# interactions n exctype, id i j dx dy dz Jij\n";
 

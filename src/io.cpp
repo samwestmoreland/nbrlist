@@ -82,23 +82,34 @@ void parse_input (std::string const& inputfile) {
          }
       }
 
+      else if (key == "centrepin") {
+
+         if (val == "true") sys.centrepin = true;
+         else if (val == "false") sys.centrepin = false;
+         else {
+            std::cout << "not sure what '" << val << "' means. exiting\n";
+            exit(EXIT_FAILURE);
+         }
+      }
+
       else if (key == "dwsystemdimensionx") {
-         sys.domainwall = true;
          sys.dw_dim.x = stof(val);
       }
 
       else if (key == "dwsystemdimensiony") {
-         sys.domainwall = true;
          sys.dw_dim.y = stof(val);
       }
 
       else if (key == "dwsystemdimensionz") {
-         sys.domainwall = true;
          sys.dw_dim.z = stof(val);
       }
 
+      else if (key == "ticoncentration") {
+         sys.ticoncentration = stof(val);
+      }
+
       else {
-         std::cout << "input parse error: i don't know what " << "\"" << key << "\" means\n";
+         std::cout << "input file parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);
       }
 
