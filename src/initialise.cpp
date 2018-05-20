@@ -274,7 +274,7 @@ std::string generate_filename(std::string const& material_string) {
       filename = "./" + std::to_string(sys.ticoncentration) + "percent.coords";
    }
    else
-      filename = "./coordinates/" + material_string + ".coords";
+      filename = "./coordinates/" + material_string + "/" + material_string + ".coords";
 
    return filename;
 }

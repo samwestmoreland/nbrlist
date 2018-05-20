@@ -49,10 +49,12 @@ public:
 struct parameter_t {
     std::string material;
     int material_int;
-    double rcut;
+    double tmtmrcut;
+    double retmrcut;
     bool tracking;
     double tt_factor;
     double rt_factor;
+    double rt_exchange_constant;
     double zrconcentration;
     bool domainwall;
     bool centrepin;
@@ -83,6 +85,7 @@ struct int_t
     atom_t i, j;            // atom ids of i and j
     vec_t disp;             // unitcell displacement
     double exchange;        // exchange energy associated with atom pair
+    double rij;             // atom separation
 };
 
 struct material_t

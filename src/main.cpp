@@ -43,7 +43,8 @@ int main (int argc, char *argv[]) {
 
    std::cout << "\nparameters read from input file:\n";
    std::cout << "\tmaterial: " << sys.material << std::endl;
-   std::cout << "\tcut-off radius: " << sys.rcut << std::endl;
+   std::cout << "\ttm-tm cut-off radius: " << sys.tmtmrcut << std::endl;
+   std::cout << "\tre-tm cut-off radius: " << sys.retmrcut << std::endl;
    std::cout << "\tzr concentration: " << sys.zrconcentration << std::endl;
 
    // if (sys.tracking) {
@@ -594,7 +595,7 @@ int calculate_interactions() {
             double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
 
             /* if distance less than rcut and not same atom */
-            if (rij < sys.rcut && rij > 1e-10) {
+            if (rij < sys.tmtmrcut && rij > 1e-10) {
 
                /* add neighbour distance to total */
                total_neighbour_distance += rij;
@@ -611,6 +612,8 @@ int calculate_interactions() {
 
                /* calculate exchange energy */
                temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, sys.material_int);
+
+               temp.rij = rij;
 
                /* put interaction into array */
                if (temp.exchange!=0) {
@@ -688,7 +691,8 @@ int calculate_interactions() {
             << uc_interactions[i].disp.x    << "\t"
             << uc_interactions[i].disp.y    << "\t"
             << uc_interactions[i].disp.z    << "\t"
-            << uc_interactions[i].exchange  << "\n";
+            << uc_interactions[i].exchange  << "\t"
+            << uc_interactions[i].rij       << "\n";
 
       std::cout << "interaction data output to \'output.ucf\'\n";
 
@@ -776,11 +780,11 @@ double calculate_jij(std::string const& i_type,
              (i_type=="Fe8f" && j_type=="Nd") ||
              (i_type=="Nd" && j_type=="Fe8f") ) {
 
-            if (rij<=4.0) return ndfe12_rt_factor * c*(a/(rij*rij*rij)-b);
+            if (rij <= sys.retmrcut) return sys.rt_exchange_constant;
             else return 0.0;
          }
 
-         // Fe-Fe (cutoff at r = 5.74A)
+         // Fe-Fe
          else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
                   (i_type=="Fe8i" && j_type=="Fe8j") ||
                   (i_type=="Fe8i" && j_type=="Fe8f") ||
@@ -817,7 +821,7 @@ double calculate_jij(std::string const& i_type,
              (i_type=="Fe8f" && j_type=="Sm") ||
              (i_type=="Sm" && j_type=="Fe8f") ) {
 
-            if (rij<=4.0) return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
+            if (rij<=3.1) return sys.rt_exchange_constant;
             else return 0.0;
          }
 

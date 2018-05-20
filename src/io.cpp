@@ -52,10 +52,13 @@ void parse_input (std::string const& inputfile) {
       /* loop through characters after equals sign */
       for (int i=endvar; i<line.length(); ++i) val.push_back(line.at(i));
 
-      if (key == "cutoff") sys.rcut = stof(val);
+      if (key == "tmtmcutoff") sys.tmtmrcut = stof(val);
+      else if (key == "retmcutoff") sys.retmrcut = stof(val);
 
       else if (key == "tt_factor") sys.tt_factor = stof(val);
       else if (key == "rt_factor") sys.rt_factor = stof(val);
+
+      else if (key == "retmexchangeconstant") sys.rt_exchange_constant = stof(val);
 
       else if (key == "tracking") {
          if (val == "false") sys.tracking = false;
