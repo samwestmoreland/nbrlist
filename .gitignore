@@ -1,6 +1,5 @@
 nbrlist
 *.ucf
-coordinates/*
 *.xyz
 *.mat
 src/nbrlist_onemat.cpp
@@ -9,5 +8,4 @@ vampire_test/
 input
 /input
 build/
-ucf_inputfile
 nbrlist.log
