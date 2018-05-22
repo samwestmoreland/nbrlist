@@ -1,0 +1,40 @@
+#  material options:
+#    bccfe
+#    ndfeb
+#    ndfe12
+#    smfe12
+#    smzrfe12
+#    interface
+#    interface_mirror
+#    smco12
+#    smfeti12
+
+material = smfe12
+
+###### cut off distances
+tmtm cut off = 5.0
+retm cut off = 3.032
+
+###### exchange constants/factors
+re tm exchange constant = 1e-21
+
+tt_factor = 0.65
+# rt_factor = 0.20
+
+###### cell tracking program
+tracking = false
+
+###### zr concentration (as a fraction)
+zr concentration = 0
+
+###### domain wall and pinned domain wall programs
+domain wall = false
+centre pin = false
+
+###### domain wall parameters (nanometres)
+# dw system dimension x = 12
+# dw system dimension y = 3
+# dw system dimension z = 3
+
+###### to use this make sure material is e.g. smfeti12
+# ti concentration = 0
