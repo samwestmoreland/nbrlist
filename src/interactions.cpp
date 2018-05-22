@@ -233,6 +233,7 @@ double calculate_jij(std::string const& i_type,
              (i_type=="Nd" && j_type=="Fe8f") ) {
 
             if (rij <= sys.retmrcut) return sys.rt_exchange_constant;
+
             else return 0.0;
          }
 
