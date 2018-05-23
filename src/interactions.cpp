@@ -226,13 +226,13 @@ double calculate_jij(std::string const& i_type,
 
          /* Nd-Fe *** values from matsumoto (2016) *** */
          else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.58;
+            return sys.rt_factor * 1.58 * 1.6e-22;
 
          else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.54;
+            return sys.rt_factor * 1.54 * 1.6e-22;
 
          else if (  ((i_type=="Fe8f" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8f")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.98;
+            return sys.rt_factor * 1.98 * 1.6e-22;
 
          // Fe-Fe
          else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
@@ -245,7 +245,7 @@ double calculate_jij(std::string const& i_type,
                   (i_type=="Fe8f" && j_type=="Fe8j") ||
                   (i_type=="Fe8f" && j_type=="Fe8f"))
 
-            return ndfe12_tt_factor * c*(a/(rij*rij*rij)-b);
+            return sys.tt_factor * c*(a/(rij*rij*rij)-b);
 
          else return 0.0;
     	}
