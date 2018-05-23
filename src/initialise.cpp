@@ -29,9 +29,14 @@ int initialise_material(int material_int, std::string const& material) {
          break;
 
       case 3 :    /* ndfe12 */
-         ucd.x = 8.574;
-         ucd.y = 8.574;
-         ucd.z = 4.907;
+//         ucd.x = 8.574;       /*          */
+//         ucd.y = 8.574;       /* old code */
+//         ucd.z = 4.907;       /*          */
+
+         ucd.x = 8.512;       /*          */
+         ucd.y = 8.512;       /*  connor  */
+         ucd.z = 4.842;       /*          */
+
          break;
 
       case 4 :    /* smfe12 */
