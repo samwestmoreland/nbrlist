@@ -221,18 +221,25 @@ double calculate_jij(std::string const& i_type,
          double ndfe12_tt_factor = sys.tt_factor;
          double ndfe12_rt_factor = sys.rt_factor;
 
-         /* Nd-Nd */
-         if(i_type=="Nd" && j_type=="Nd") return 0.0;
+          /* Nd-Nd */
+          if(i_type=="Nd" && j_type=="Nd") return 0.0;
 
-         /* Nd-Fe *** values from matsumoto (2016) *** */
-         else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.58 * 1.6e-22;
+          /* Nd-Fe *** values from matsumoto (2016) *** */
+          else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
+             return sys.rt_exchange_constant;
 
-         else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.54 * 1.6e-22;
+          else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
+             return sys.rt_exchange_constant;
 
-         else if (  ((i_type=="Fe8f" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8f")) && (rij<=sys.retmrcut) )
-            return sys.rt_factor * 1.98 * 1.6e-22;
+          //         /* Nd-Fe *** values from matsumoto (2016) *** */
+          //         else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
+          //            return sys.rt_factor * 1.58 * 1.6e-22;
+          //
+          //         else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
+          //            return sys.rt_factor * 1.54 * 1.6e-22;
+          //
+          //         else if (  ((i_type=="Fe8f" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8f")) && (rij<=sys.retmrcut) )
+          //            return sys.rt_factor * 1.98 * 1.6e-22;
 
          // Fe-Fe
          else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
