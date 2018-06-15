@@ -2,6 +2,7 @@
 #define CLASSES_H_
 
 #include <string>
+#include <cmath>
 
 class lattparameters_t {
    public:
@@ -47,51 +48,111 @@ public:
 };
 
 struct parameter_t {
-    std::string material;
-    int material_int;
-    double tmtmrcut;
-    double retmrcut;
-    bool tracking;
+
+    double rcut_tt;
+    double rcut_rt;
     double tt_factor;
     double rt_factor;
-    double rt_exchange_constant;
-    double zrconcentration;
+    double rt_constant;
+
+    double zr_concentration;
+    int ti_concentration;
+
+    bool tracking;
     bool domainwall;
     bool centrepin;
+
     vec_t dw_dim;
-    bool zrdoping;
-    bool tidope;
-    int ticoncentration;
 };
 
 // class for all atoms in system
 class atom_t {
-public:
-    std::string element;        // element string
-    // vec_t spin;                 // spin components
-    vec_t pos;                  // coordinates
-    vec_t uc;                   // unitcell coordinates
-    int aid;                    // atom id (unique within unitcell)
-    int gid;                    // global atom id
-    int hcat;                   // height category
-    int mat;                    // material
-    bool fe;                    // is it iron or not
+   public:
+      std::string element;        // element string
+      // vec_t spin;                 // spin components
+      vec_t pos;                  // coordinates
+      vec_t uc;                   // unitcell coordinates
+      int aid;                    // atom id (unique within unitcell)
+      int gid;                    // global atom id
+      int hcat;                   // height category
+      int mat;                    // material
+
+      bool is_tm() {
+
+         if (element == "Fe" ||
+             element == "Fe8i" ||
+             element == "Fe8j" ||
+             element == "Fe8f" ||
+             element == "Co" ||
+             element == "Co8i" ||
+             element == "Co8j" ||
+             element == "Co8f")
+            return true;
+         else return false;
+      }
+
+      bool is_re() {
+
+         if (element == "Nd" ||
+             element == "Sm")
+            return true;
+         else return false;
+      }
 };
 
-// class to hold interaction information
-struct int_t
-{
-    int iid;                // interaction id
-    atom_t i, j;            // atom ids of i and j
-    vec_t disp;             // unitcell displacement
-    double exchange;        // exchange energy associated with atom pair
-    double rij;             // atom separation
+class material_t {
+   public:
+      std::string name;        // element name
+      vec_t ucd;               // unitcell dimensions
+
+      int id() {
+         if (name == "bccfe") return 1;
+         else if (name == "ndfeb") return 2;
+         else if (name == "ndfe12") return 3;
+         else if (name == "smfe12") return 4;
+         else if (name == "smco12") return 5;
+         else if (name == "interface") return 6;
+         else return 0;
+      }
 };
 
-struct material_t
-{
-   std::string name;        // element name
-   int id;                  // element id
+class pair_t {
+   public:
+      int iid;             // interaction id
+      atom_t i, j;         // atoms i and j
+      vec_t ucd;           // unitcell displacement
+      double exchange;     // exchange energy associated with interaction
+
+      /* check atoms aren't interacting with themselves */
+      bool are_same_atom() {
+         if (i.gid == j.gid)
+            return true;
+         else return false;
+      }
+
+      /* calculate inter-atomic separation */
+      double rij() {
+         double dx = j.pos.x - i.pos.x;
+         double dy = j.pos.y - i.pos.y;
+         double dz = j.pos.z - i.pos.z;
+
+         return sqrt(dx*dx+dy*dy+dz*dz);
+      }
+
+      /* are the atoms within the cut off radii? */
+      bool are_within_range(double rcut_rt, double rcut_tt) {
+         if ((i.is_re() && j.is_tm()) || (i.is_tm() && j.is_re())) {
+            if (rij() <= rcut_rt) return true;
+            else return false;
+         }
+
+         else if (i.is_tm() && j.is_tm()) {
+            if (rij() <= rcut_tt) return true;
+            else return false;
+         }
+
+         else return false;
+      }
 };
 
 #endif

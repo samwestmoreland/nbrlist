@@ -6,9 +6,7 @@
 #include "./data.hpp"
 #include "./main.hpp"
 #include "./io.hpp"
-
-/* function prototypes */
-void populate_supercell();
+#include "./interactions.hpp"
 
 int calculate_interactions() {
 
@@ -18,22 +16,17 @@ int calculate_interactions() {
 
    std::cout << "calculating interactions...\n\n";
 
-   if (sys.material_int == 2 || sys.material_int == 8)
-      std::cout <<
-         "TM-TM exchange factor = " << sys.tt_factor << "\n" <<
-         "RE-TM exchange factor = " << sys.rt_factor << "\n";
-
    /* first and last index of central unitcell */
    int start;
    int end;
 
    int interaction_count = 0;
-   int tmtm_interaction_count = 0;
-   int retm_interaction_count = 0;
+   int tt_interaction_count = 0;
+   int rt_interaction_count = 0;
 
    double total_neighbour_distance = 0;
-   double total_tmtm_neighbour_distance = 0;
-   double total_retm_neighbour_distance = 0;
+   double total_tt_neighbour_distance = 0;
+   double total_rt_neighbour_distance = 0;
 
       start = (supercell.size()-unitcell.size())/2;
       end   = (supercell.size()+unitcell.size())/2;
@@ -44,56 +37,43 @@ int calculate_interactions() {
          /* loop through super cell (looking for atom j) */
          for (int j=0; j<supercell.size(); ++j) {
 
-            /* calculate interatomic distance */
-            double rij = calculate_rij(supercell[i].pos, supercell[j].pos);
+            /* create a temporary pair of atoms */
+            pair_t pair;
+            pair.i = supercell[i];
+            pair.j = supercell[j];
 
             /* if distance less than rcut and not same atom */
-            if (rij < sys.tmtmrcut && rij > 1e-10) {
+            if (pair.are_within_range(sys.rcut_rt, sys.rcut_tt) && !pair.are_same_atom()) {
 
                /* add neighbour distance to total */
-               total_neighbour_distance += rij;
+               total_neighbour_distance += pair.rij();
 
-               /* create an interaction */
-               int_t temp;
-               temp.i = supercell[i];
-               temp.j = supercell[j];
-
-               temp.iid = interaction_count;
+               /* assign interaction id */
+               pair.iid = interaction_count;
 
                /* unitcell displacement */
-               temp.disp = temp.j.uc - temp.i.uc;
+               pair.ucd = pair.j.uc - pair.i.uc;
 
                /* calculate exchange energy */
-               temp.exchange = calculate_jij(temp.i.element, temp.j.element, rij, sys.material_int);
-
-               temp.rij = rij;
+               pair.exchange = calculate_jij(pair);
 
                /* put interaction into array */
-               if (temp.exchange!=0) {
+               if (pair.exchange >= 1e-30) {
 
-                  uc_interactions.push_back(temp);
+                  uc_interactions.push_back(pair);
                   interaction_count ++;
 
                   /* if interaction is fe-fe or fe-co */
-                  if (
-                        (temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe" || temp.i.element == "Co") &&
-                        (temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe" || temp.j.element == "Co")
-                     ) {
-
-                     tmtm_interaction_count ++;
-                     total_tmtm_neighbour_distance += rij;
+                  if (pair.i.is_tm() && pair.j.is_tm()) {
+                     tt_interaction_count ++;
+                     total_tt_neighbour_distance += pair.rij();
                   }
 
                   /* if interaction is fe-re */
-                  else if (
-                        ((temp.i.element == "Fe8i" || temp.i.element == "Fe8j" || temp.i.element == "Fe8f" || temp.i.element == "Fe" || temp.i.element == "Co") &&
-                         (temp.j.element == "Sm" || temp.j.element == "Nd"))
-                        ||
-                        ((temp.j.element == "Fe8i" || temp.j.element == "Fe8j" || temp.j.element == "Fe8f" || temp.j.element == "Fe" || temp.j.element == "Co") &&
-                         (temp.i.element == "Sm" || temp.i.element == "Nd"))
-                        ) {
-                     retm_interaction_count ++;
-                     total_retm_neighbour_distance += rij;
+                  else if ((pair.i.is_re() && pair.j.is_tm()) || (pair.i.is_tm() && pair.j.is_re())) {
+                     rt_interaction_count ++;
+                     total_rt_neighbour_distance += pair.rij();
+
                   }
                }
 
@@ -107,11 +87,11 @@ int calculate_interactions() {
 
       std::cout
          << "tm-tm interactions: "
-         << tmtm_interaction_count << std::endl;
+         << tt_interaction_count << std::endl;
 
       std::cout
          << "re-tm interactions: "
-         << retm_interaction_count << std::endl;
+         << rt_interaction_count << std::endl;
 
       std::cout << std::endl;
 
@@ -121,15 +101,90 @@ int calculate_interactions() {
          << " A" << std::endl;
 
       std::cout
-         << "mean tm-tm neighbour distance: "
-         << total_tmtm_neighbour_distance/tmtm_interaction_count
+         << "mean t-t neighbour distance: "
+         << total_tt_neighbour_distance/tt_interaction_count
          << " A" << std::endl;
 
       std::cout
-         << "mean re-fe neighbour distance: "
-         << total_retm_neighbour_distance/retm_interaction_count
+         << "mean r-t neighbour distance: "
+         << total_rt_neighbour_distance/rt_interaction_count
          << " A" << std::endl;
 
+      /* matrix to store interaction strengths */
+      std::vector<std::vector<double> > element_interactions;
+      element_interactions.resize(elements.size());
+      for (int i=0; i<elements.size(); ++i) element_interactions[i].resize(elements.size());
+
+      /* matrix of same dimensions to hold number of interactions between each type */
+      std::vector<std::vector<double> > n_interactions;
+      n_interactions.resize(elements.size());
+      for (int i=0; i<elements.size(); ++i) n_interactions[i].resize(elements.size());
+
+      /* initialise both matrices to zero */
+      for (int i=0; i<elements.size(); ++i)
+         for (int j=0; j<elements.size(); ++j) {
+
+            element_interactions[i][j] = 0;
+            n_interactions[i][j] = 0;
+
+         }
+
+      /* fill matrices */
+      for (int i=0; i<uc_interactions.size(); ++i) {
+
+         int j = uc_interactions[i].j.mat;
+         int k = uc_interactions[i].i.mat;
+
+         element_interactions[j][k] += uc_interactions[i].exchange;
+         n_interactions[j][k] ++;
+
+      }
+
+      /* print matrices */
+      std::cout << "\nn_interactions matrix\n";
+
+      for (int i=0; i<elements.size(); ++i) {
+         for (int j=0; j<elements.size(); ++j)
+
+            std::cout << n_interactions[i][j] << "\t";
+
+         std::cout << std::endl;
+      }
+
+      std::cout << "\nexchange matrix (total)\n";
+
+      for (int i=0; i<elements.size(); ++i) {
+         for (int j=0; j<elements.size(); ++j) {
+
+            if (n_interactions[i][j] != 0) std::cout << element_interactions[i][j] << "\t";
+
+            else std::cout << "0.000000000" << "\t";
+
+         }
+
+         std::cout << std::endl;
+      }
+
+      std::cout << std::endl;
+
+      std::cout << "\nexchange matrix (mean)\n";
+
+      for (int i=0; i<elements.size(); ++i) {
+         for (int j=0; j<elements.size(); ++j) {
+            if (n_interactions[i][j] != 0) {
+
+               element_interactions[i][j] /= n_interactions[i][j];
+               std::cout << element_interactions[i][j] << "\t";
+
+            }
+
+            else std::cout << "0.000000000" << "\t";
+         }
+
+         std::cout << std::endl;
+      }
+
+      std::cout << std::endl;
       std::cout << std::endl;
 
       outfile
@@ -141,9 +196,9 @@ int calculate_interactions() {
             << uc_interactions[i].iid       << "\t"
             << uc_interactions[i].i.aid     << "\t"
             << uc_interactions[i].j.aid     << "\t"
-            << uc_interactions[i].disp.x    << "\t"
-            << uc_interactions[i].disp.y    << "\t"
-            << uc_interactions[i].disp.z    << "\t"
+            << uc_interactions[i].ucd.x     << "\t"
+            << uc_interactions[i].ucd.y     << "\t"
+            << uc_interactions[i].ucd.z     << "\t"
             << uc_interactions[i].exchange  << "\n";
 
       std::cout << "interaction data output to \'output.ucf\'\n";
@@ -152,293 +207,164 @@ int calculate_interactions() {
 }
 
 /* calculate exchange energy */
-double calculate_jij(std::string const& i_type,
-                     std::string const& j_type,
-                     double rij,
-                     int exchange_fn) {
+double calculate_jij(pair_t pair) {
 
-   switch (exchange_fn) {
+   switch (mat.id()) {
 
-      case 1 : { // bccfe
-         /* parameters from Pajda (2001) */
-         /* factor 2 to correct for Hamiltonian */
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
-         return c*(a/(rij*rij*rij)-b);
-      }
-         break;
+      case 1 : {  /* bccfe */
+                  /* parameters from Pajda (2001) */
+                  /* factor 2 to correct for Hamiltonian */
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
+                  return c * (a / (rij*rij*rij) - b);
+               }
+               break;
 
-      case 2 : { // ndfeb
+      case 2 : { /* ndfeb */
 
-         // return jij_ndfeb(i_type, j_type, rij);
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
 
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
+                  double ndfeb_tt_factor = sys.tt_factor;
+                  double ndfeb_rt_factor = sys.rt_factor;
 
-         double ndfeb_tt_factor = sys.tt_factor;
-         double ndfeb_rt_factor = sys.rt_factor;
+                  /* Nd-Nd */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
-         /* Nd-Nd */
-         if (i_type=="Nd" && j_type=="Nd") return 0.0;
+                  /* Nd-Fe */
+                  else if ((pair.i.is_re() && pair.j.is_tm()) || (pair.i.is_tm() && pair.j.is_re()))
+                     return sys.rt_constant;
 
-         /* Sm-Fe */
-         // if ((i_type=="Fe8i" && j_type=="Sm") ||
-         //     (i_type=="Sm" && j_type=="Fe8i") ||
-         //     (i_type=="Fe8j" && j_type=="Sm") ||
-         //     (i_type=="Sm" && j_type=="Fe8j") ||
-         //     (i_type=="Fe8f" && j_type=="Sm") ||
-         //     (i_type=="Sm" && j_type=="Fe8f") ) {
-         //
-         //
-         //    if (rij<=4.0) return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
-         //    else return 0.0;
-         // }
+                  /* Fe-Fe */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return ndfeb_tt_factor * c*(a/(rij*rij*rij)-b);
 
-
-         else if ((i_type == "Nd" && j_type == "Fe") ||
-                  (i_type == "Fe" && j_type == "Nd"))
-         {
-            return ndfeb_rt_factor * c*(a/(rij*rij*rij)-b);
-         }
-
-         // Fe-Fe (cutoff at r = 5.74A)
-         else if (i_type=="Fe" && j_type=="Fe")
-            return ndfeb_tt_factor * c*(a/(rij*rij*rij)-b);
-
-         else return 0.0;
+                  else return 0.0;
 
                }
                break;
 
       case 3 : { // ndfe12
 
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
 
-         double ndfe12_tt_factor = sys.tt_factor;
-         double ndfe12_rt_factor = sys.rt_factor;
+                  double ndfe12_tt_factor = sys.tt_factor;
+                  double ndfe12_rt_factor = sys.rt_factor;
 
-          /* Nd-Nd */
-          if(i_type=="Nd" && j_type=="Nd") return 0.0;
+                  /* Nd-Nd */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
-          /* Nd-Fe *** values from matsumoto (2016) *** */
-          else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
-             return sys.rt_exchange_constant;
+                  /* Nd-Fe *** values from matsumoto (2016) *** */
+                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                     return sys.rt_constant;
 
-          else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
-             return sys.rt_exchange_constant;
+                  /* Fe-Fe */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return sys.tt_factor * c*(a/(rij*rij*rij)-b);
 
-          //         /* Nd-Fe *** values from matsumoto (2016) *** */
-          //         else if (  ((i_type=="Fe8i" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8i")) && (rij<=sys.retmrcut) )
-          //            return sys.rt_factor * 1.58 * 1.6e-22;
-          //
-          //         else if (  ((i_type=="Fe8j" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8j")) && (rij<=sys.retmrcut) )
-          //            return sys.rt_factor * 1.54 * 1.6e-22;
-          //
-          //         else if (  ((i_type=="Fe8f" && j_type=="Nd") || (i_type=="Nd" && j_type=="Fe8f")) && (rij<=sys.retmrcut) )
-          //            return sys.rt_factor * 1.98 * 1.6e-22;
-
-         // Fe-Fe
-         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
-                  (i_type=="Fe8i" && j_type=="Fe8j") ||
-                  (i_type=="Fe8i" && j_type=="Fe8f") ||
-                  (i_type=="Fe8j" && j_type=="Fe8i") ||
-                  (i_type=="Fe8j" && j_type=="Fe8j") ||
-                  (i_type=="Fe8j" && j_type=="Fe8f") ||
-                  (i_type=="Fe8f" && j_type=="Fe8i") ||
-                  (i_type=="Fe8f" && j_type=="Fe8j") ||
-                  (i_type=="Fe8f" && j_type=="Fe8f"))
-
-            return sys.tt_factor * c*(a/(rij*rij*rij)-b);
-
-         else return 0.0;
-    	}
-      	break;
+                  else return 0.0;
+               }
+               break;
 
       case 4 : { /* smfe12 */
 
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
 
-         double smfe12_tt_factor = sys.tt_factor;
+                  double smfe12_tt_factor = sys.tt_factor;
+                  double smfe12_rt_factor = sys.rt_factor;
 
-         /* these factors come from simulations with re-tm cut-off 4.0 A */
-         // double smfe12_tt_factor = 0.65;
-         // double smfe12_rt_factor = 0.20;
+                  /* Sm-Sm */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
-         /* Sm-Sm */
-         if(i_type=="Sm" && j_type=="Sm") return 0.0;
+                  /* Sm-Fe */
+                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                     return sys.rt_constant;
 
-         /* Sm-Fe */
-         if ((i_type=="Fe8i" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8i") ||
-             (i_type=="Fe8j" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8j") ||
-             (i_type=="Fe8f" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8f") ) {
+                  /* Fe-Fe */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return sys.tt_factor * c*(a/(rij*rij*rij)-b);
 
-            if (rij <= sys.retmrcut) return sys.rt_exchange_constant;
-            else return 0.0;
-         }
+                  else return 0.0;
 
-         // Fe-Fe (cutoff at r = 5.74A)
-         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
-                  (i_type=="Fe8i" && j_type=="Fe8j") ||
-                  (i_type=="Fe8i" && j_type=="Fe8f") ||
-                  (i_type=="Fe8j" && j_type=="Fe8i") ||
-                  (i_type=="Fe8j" && j_type=="Fe8j") ||
-                  (i_type=="Fe8j" && j_type=="Fe8f") ||
-                  (i_type=="Fe8f" && j_type=="Fe8i") ||
-                  (i_type=="Fe8f" && j_type=="Fe8j") ||
-                  (i_type=="Fe8f" && j_type=="Fe8f"))
+                  /* these factors come from simulations with re-tm cut-off 4.0 A */
+                  // double smfe12_tt_factor = 0.65;
+                  // double smfe12_rt_factor = 0.20;
 
-            return smfe12_tt_factor * c*(a/(rij*rij*rij)-b);
+               }
+               break;
 
-         else return 0.0;
-      }
-         break;
+      case 5 : { /* smco12 */
 
-      case 5 : { /* smzrfe12 */
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
 
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
+                  double smo12_tt_factor = sys.tt_factor;
+                  double smo12_rt_factor = sys.rt_factor;
 
-         /* Sm-Sm */
-         if(i_type=="Sm" && j_type=="Sm") return 0.0;
+                  /* Sm-Sm */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
-         /* Sm-Fe */
-         if ((i_type=="Fe8i" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8i") ||
-             (i_type=="Fe8j" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8j") ||
-             (i_type=="Fe8f" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe8f") ) {
+                  /* Sm-Co */
+                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                     return sys.rt_constant;
 
-            if (rij<=4.0) return sys.rt_factor * c*(a/(rij*rij*rij)-b);
-            else return 0.0;
-         }
+                  /* Co-Co */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return sys.tt_factor * c*(a/(rij*rij*rij)-b);
 
-         // Fe-Fe (cutoff at r = 5.74A)
-         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
-                  (i_type=="Fe8i" && j_type=="Fe8j") ||
-                  (i_type=="Fe8i" && j_type=="Fe8f") ||
-                  (i_type=="Fe8j" && j_type=="Fe8i") ||
-                  (i_type=="Fe8j" && j_type=="Fe8j") ||
-                  (i_type=="Fe8j" && j_type=="Fe8f") ||
-                  (i_type=="Fe8f" && j_type=="Fe8i") ||
-                  (i_type=="Fe8f" && j_type=="Fe8j") ||
-                  (i_type=="Fe8f" && j_type=="Fe8f"))
+                  else return 0.0;
+               }
+               break;
 
-            return sys.tt_factor * c*(a/(rij*rij*rij)-b);
+      case 6 : { /* interface */
 
-         else return 0.0;
-      }
-         break;
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
 
-      case 6 : /* interface */
+                  double ndfeb_tt_factor = sys.tt_factor;
+                  double ndfeb_rt_factor = sys.rt_factor;
 
-         return jij_ndfeb(i_type, j_type, rij);
-         break;
+                  /* Nd-Nd */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
-      case 7 : /* interface mirror */
+                  /* Nd-Fe */
+                  else if ((pair.i.is_re() && pair.j.is_tm()) || (pair.i.is_tm() && pair.j.is_re()))
+                     return sys.rt_constant;
 
-         return jij_ndfeb(i_type, j_type, rij);
-         break;
+                  /* Fe-Fe */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return ndfeb_tt_factor * c*(a/(rij*rij*rij)-b);
 
-      case 8 : { /* smco12 */
+                  else return 0.0;
 
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
-
-         double smco12_tt_factor = sys.tt_factor;
-         // double smco12_rt_factor = sys.rt_factor;
-
-         /* Sm-Sm */
-         if(i_type=="Sm" && j_type=="Sm") return 0.0;
-
-         /* Sm-Co */
-         if ((i_type=="Co" && j_type=="Sm") || (i_type=="Sm" && j_type=="Co")) {
-            if (rij <= sys.retmrcut) return sys.rt_exchange_constant;
-            else return 0.0;
-         }
-
-         // Co-Co
-         else if (i_type=="Co" && j_type=="Co")
-
-            return smco12_tt_factor * c*(a/(rij*rij*rij)-b);
-
-         else return 0.0;
-
-         }
-         break;
-
-      case 9 : { /* smfeti12 */
-
-         double a = 121.00658;
-         double b = 1.72543313196278;
-         double c = 1e-21;
-
-         double smfe12_tt_factor = sys.tt_factor;
-         double smfe12_rt_factor = sys.rt_factor;
-
-         /* Sm-Sm */
-         if(i_type=="Sm" && j_type=="Sm") return 0.0;
-
-         /* Sm-Fe */
-         if ((i_type=="Fe" && j_type=="Sm") ||
-             (i_type=="Sm" && j_type=="Fe")) {
-
-            return smfe12_rt_factor * c*(a/(rij*rij*rij)-b);
-         }
-
-         // Fe-Fe (cutoff at r = 5.74A)
-//         else if ((i_type=="Fe8i" && j_type=="Fe8i") ||
-//                  (i_type=="Fe8i" && j_type=="Fe8j") ||
-//                  (i_type=="Fe8i" && j_type=="Fe8f") ||
-//                  (i_type=="Fe8j" && j_type=="Fe8i") ||
-//                  (i_type=="Fe8j" && j_type=="Fe8j") ||
-//                  (i_type=="Fe8j" && j_type=="Fe8f") ||
-//                  (i_type=="Fe8f" && j_type=="Fe8i") ||
-//                  (i_type=="Fe8f" && j_type=="Fe8j") ||
-//                  (i_type=="Fe8f" && j_type=="Fe8f"))
-
-         else if ((i_type == "Fe" && j_type == "Fe"))
-            return smfe12_tt_factor * c*(a/(rij*rij*rij)-b);
-
-         else if ((i_type == "Ti" && j_type == "Ti"))
-            return 0.0;
-
-         else if ((i_type == "Ti" && j_type == "Sm"))
-            return 0.0;
-
-         else if ((i_type == "Sm" && j_type == "Ti"))
-            return 0.0;
-
-         else if ((i_type == "Ti" && j_type == "Fe"))
-            return 0.0;
-
-         else if ((i_type == "Fe" && j_type == "Ti"))
-            return 0.0;
-
-         else return 0.0;
-      }
+               }
                break;
 
       default :
-         std::cout << "invalid option. exiting.\n";
-         exit(EXIT_FAILURE);
+               std::cout << "invalid option. exiting.\n";
+               exit(EXIT_FAILURE);
 
    } /* end of switch */
 
 } /* end of calculate_jij function */
 
-void populate_supercell() {
+int populate_supercell() {
+
+   int global_id_counter = 0;
 
    /* loop through dimensions */
    for (int i=0; i<3; i++)
@@ -459,23 +385,25 @@ void populate_supercell() {
                temp.mat = unitcell[atom].mat;
 
                /* replicate unitcell atoms */
-               temp.pos = unitcell[atom].pos + (uc * ucd);
+               temp.pos = unitcell[atom].pos + (uc * mat.ucd);
 
                /* label unitcell coordinates */
                temp.uc = uc;
 
                /* dummy values for unneeded struct elements */
                temp.hcat = 0;
-               temp.gid = 0;   // this isn't needed yet as the calculations are generated for a large system later
+               temp.gid = global_id_counter;
+               global_id_counter ++;
 
                /* place atom in array */
                supercell.push_back(temp);
             }
 
-   std::cout << "atoms in super cell: "
-             << supercell.size() << std::endl;
+   std::cout
+      << "atoms in super cell: " << supercell.size() << "\n\n";
 
-   array_to_rasmol(supercell, "supercell");
+//   array_to_rasmol(supercell, "supercell");
 
+   return EXIT_SUCCESS;
 }
 

@@ -10,22 +10,20 @@
 #include "./initialise.hpp"
 #include "./main.hpp"
 
-int initialise_material(int material_int, std::string const& material) {
+int get_unitcell_dimensions() {
 
-   std::cout << "\ninitialising material \'" << material << "\'\n";
-
-   switch(material_int) {
+   switch(mat.id()) {
 
       case 1 :    /* bccfe */
-         ucd.x = 2.856;
-         ucd.y = 2.856;
-         ucd.z = 2.856;
+         mat.ucd.x = 2.856;
+         mat.ucd.y = 2.856;
+         mat.ucd.z = 2.856;
          break;
 
       case 2 :    /* ndfeb */
-         ucd.x = 8.8;
-         ucd.y = 8.8;
-         ucd.z = 12.2;
+         mat.ucd.x = 8.8;
+         mat.ucd.y = 8.8;
+         mat.ucd.z = 12.2;
          break;
 
       case 3 :    /* ndfe12 */
@@ -33,229 +31,119 @@ int initialise_material(int material_int, std::string const& material) {
 //         ucd.y = 8.574;       /* old code */
 //         ucd.z = 4.907;       /*          */
 
-         ucd.x = 8.512;       /*          */
-         ucd.y = 8.512;       /*  connor  */
-         ucd.z = 4.842;       /*          */
-
+         mat.ucd.x = 8.512;
+         mat.ucd.y = 8.512;
+         mat.ucd.z = 4.842;     /*  from connor  */
          break;
 
       case 4 :    /* smfe12 */
-         if (sys.zrdoping == false) {
-            ucd.x = 8.497;
-            ucd.y = 8.497;
-            ucd.z = 4.687;
-         }
-         else ucd = get_uc_dimensions_from_zr_content(sys.zrconcentration);
+         mat.ucd.x = 8.497;
+         mat.ucd.y = 8.497;
+         mat.ucd.z = 4.687;
          break;
 
-      case 5 :    /* smzrfe12 */
-         ucd = get_uc_dimensions_from_zr_content(sys.zrconcentration);
+      case 5 :    /* smco12 */
+         mat.ucd.x = 8.443068;
+         mat.ucd.y = 8.443068;
+         mat.ucd.z = 4.799171;    /* from connor */
          break;
 
       case 6 :    /* interface */
-         ucd.x = 26.181;
-         ucd.y = 26.181;
-         ucd.z = 0;
-         break;
-
-      case 7 :    /* interface_mirror */
-         ucd.x = 26.181;
-         ucd.y = 26.181;
-         ucd.z = 0;
-         break;
-
-      case 8 :    /* smco12 */
-         ucd.x = 8.443068;
-         ucd.y = 8.443068;
-         ucd.z = 4.799171;    /* from connor */
-         break;
-
-      case 9 :    /* smfeti12 */
+         mat.ucd.x = 26.181;
+         mat.ucd.y = 26.181;
+         mat.ucd.z = 0;
          break;
 
    }
 
    std::cout << std::endl;
-   std::string filename = generate_filename(material);
-   std::ifstream infile (filename.c_str());
+
+   std::cout << "unit cell dimensions:\n\n";
+   std::cout << "\tx = " << mat.ucd.x << std::endl;
+   std::cout << "\ty = " << mat.ucd.y << std::endl;
+   std::cout << "\tz = " << mat.ucd.z << std::endl;
+
+   std::cout << std::endl;
+
+   return EXIT_SUCCESS;
+
+}
+
+int read_coordinatefile() {
+
+   std::string filename = "./coordinates/" + mat.name + ".coords";
+
+   std::ifstream fin (filename.c_str());
 
    /* check if file opened */
-   if (!(infile.is_open())) {
-      std::cerr   << "couldn't find coordinate file \'" << filename << "\'" << std::endl;
-      std::cerr   << "exiting" << std::endl;
+   if (!fin.good()) {
+      std::cout << "couldn't open coordinate file \'" << filename << "\'. exiting." << std::endl;
       std::exit(EXIT_FAILURE);
    }
 
-   if (sys.zrdoping == true) std::cout << "(modified) ";
-
-   std::cout
-      << "unit cell dimensions: "
-      << ucd.x << ", "
-      << ucd.y << ", "
-      << ucd.z << "\n";
-
-   atom_t temp;
+   atom_t tmp;
    int atom_count = 0;
 
-   std::cout << "reading in unit cell coordinates from '" << filename << "'\n";
+   std::cout << "reading unit cell coordinates from \'" << filename << "\'...";
 
-   if (!(sys.tidope)) {
-   while (infile
-       >> temp.element
-       >> temp.pos.x
-       >> temp.pos.y
-       >> temp.pos.z) {
+   while (fin >> tmp.element >> tmp.pos.x >> tmp.pos.y >> tmp.pos.z) {
 
-            /* assign atom id */
-            temp.aid = atom_count;
-            atom_count ++;
+      /* assign atom id */
+      tmp.aid = atom_count;
+      atom_count ++;
 
-            /* assign some dummy variables for unneeded struct elements */
-            temp.gid = 0;
-            temp.hcat = 0;
-            temp.uc.x = 0;
-            temp.uc.y = 0;
-            temp.uc.z = 0;
+      /* assign some dummy variables for unneeded struct elements */
+      tmp.gid = 0;
+      tmp.hcat = 0;
+      tmp.uc.x = 0;
+      tmp.uc.y = 0;
+      tmp.uc.z = 0;
 
-            /* determine material id */
-            material_t temp_mat;
-            temp_mat.name = temp.element;
-            temp_mat.id = determine_material_id(temp_mat.name, materials);
-            temp.mat = temp_mat.id;
+      /* determine element id */
+      tmp.mat = determine_element_id(tmp.element);
 
-            /* make sure material_specific_atom_count has correct number of elements */
-            if (temp_mat.id+1 > material_specific_atom_count.size())
-               material_specific_atom_count.push_back(0);
+      /* scale atom coordinates */
+      tmp.pos = tmp.pos * mat.ucd;
 
-            /* add one to the material atom counter */
-            material_specific_atom_count[temp_mat.id] ++;
-
-            /* for material specific atom counting, determine if atom if Fe or not */
-            if (temp.element == "Fe8i" || temp.element == "Fe8j" || temp.element == "Fe8f" || temp.element == "Fe")
-               temp.fe = true;
-            else temp.fe = false;
-
-            /* scale atom coordinates */
-            temp.pos = temp.pos * ucd;
-
-            unitcell.push_back(temp);
-      }
+      unitcell.push_back(tmp);
    }
 
-   else { /* ti doping read-in */
-
-      std::string latticeparametersfilename = "./lattice_parameters.dat";
-      std::ifstream latticeparametersfile (latticeparametersfilename);
-
-      lattparameters_t tmp;
-
-      std::vector<lattparameters_t> temporary_vector_of_lattparams;
-
-      if (latticeparametersfile.good()) {
-
-         while (latticeparametersfile
-               >> tmp.a
-               >> tmp.b
-               >> tmp.c) {
-
-            temporary_vector_of_lattparams.push_back(tmp);
-
-         }
-      }
-      else {
-
-         std::cout << "lattice parameters file " << latticeparametersfilename << " not found. exiting.\n";
-         exit(EXIT_FAILURE);
-
-      }
-
-      std::cout << temporary_vector_of_lattparams[sys.ticoncentration].a << "\t"
-                << temporary_vector_of_lattparams[sys.ticoncentration].b << "\t"
-                << temporary_vector_of_lattparams[sys.ticoncentration].c << "\t"
-                << std::endl;
-
-      while (infile
-          >> temp.element
-          >> temp.pos.x
-          >> temp.pos.y
-          >> temp.pos.z) {
-
-               /* assign atom id */
-               temp.aid = atom_count;
-               atom_count ++;
-
-               /* assign some dummy variables for unneeded struct elements */
-               temp.gid = 0;
-               temp.hcat = 0;
-               temp.uc.x = 0;
-               temp.uc.y = 0;
-               temp.uc.z = 0;
-
-               /* determine material id */
-               material_t temp_mat;
-               temp_mat.name = temp.element;
-               temp_mat.id = determine_material_id(temp_mat.name, materials);
-               temp.mat = temp_mat.id;
-
-               /* make sure material_specific_atom_count has correct number of elements */
-               if (temp_mat.id+1 > material_specific_atom_count.size())
-                  material_specific_atom_count.push_back(0);
-
-               /* add one to the material atom counter */
-               material_specific_atom_count[temp_mat.id] ++;
-
-               /* for material specific atom counting, determine if atom if Fe or not */
-               if (temp.element == "Fe8i" || temp.element == "Fe8j" || temp.element == "Fe8f" || temp.element == "Fe")
-                  temp.fe = true;
-               else temp.fe = false;
-
-               ucd.x = temporary_vector_of_lattparams[sys.ticoncentration].a;
-               ucd.y = temporary_vector_of_lattparams[sys.ticoncentration].b;
-               ucd.z = temporary_vector_of_lattparams[sys.ticoncentration].c;
-
-               /* scale atom coordinates */
-               temp.pos = temp.pos * ucd;
-
-               unitcell.push_back(temp);
-         }
-   }
+   std::cout << "done.\n";
 
    std::cout << "atoms read in: " << unitcell.size() << std::endl;
 
-   std::cout << "number of materials: " << materials.size() << "\n\n";
+   std::cout << "number of different elements: " << elements.size() << "\n\n";
 
-   /* output names of materials */
-   output_materials(materials, material_specific_atom_count, unitcell.size());
+   /* output names of elements read */
+   output_elements();
 
    /*
       output atom informaton to ucf
    */
 
-   if (sys.zrdoping == false) {
-      outfile.open("output.ucf");
+   outfile.open("output.ucf");
+
+   outfile
+      << "# Unit cell size:\n"
+      << mat.ucd.x << "\t"
+      << mat.ucd.y << "\t"
+      << mat.ucd.z << "\n"
+      << "# Unit cell vectors\n"
+      << "1.0 0.0 0.0\n"
+      << "0.0 1.0 0.0\n"
+      << "0.0 0.0 1.0\n"
+      << "# Atoms num, id cx cy cz mat lc hc\n"
+      << unitcell.size() << std::endl;
+
+   for (int i=0; i<unitcell.size(); ++i) {
 
       outfile
-         << "# Unit cell size:\n"
-         << ucd.x << "\t"
-         << ucd.y << "\t"
-         << ucd.z << "\n"
-         << "# Unit cell vectors\n"
-         << "1.0 0.0 0.0\n"
-         << "0.0 1.0 0.0\n"
-         << "0.0 0.0 1.0\n"
-         << "# Atoms num, id cx cy cz mat lc hc\n"
-         << unitcell.size() << std::endl;
-
-      for (int i=0; i<unitcell.size(); ++i) {
-
-         outfile
-            << unitcell[i].aid << "\t"
-            << unitcell[i].pos.x/ucd.x << "\t"
-            << unitcell[i].pos.y/ucd.y << "\t"
-            << unitcell[i].pos.z/ucd.z << "\t"
-            << unitcell[i].mat << "\t"
-            << "0\t0\n";
-      }
+         << unitcell[i].aid << "\t"
+         << unitcell[i].pos.x/mat.ucd.x << "\t"
+         << unitcell[i].pos.y/mat.ucd.y << "\t"
+         << unitcell[i].pos.z/mat.ucd.z << "\t"
+         << unitcell[i].mat << "\t"
+         << "0\t0\n";
    }
 
    return EXIT_SUCCESS;
@@ -268,18 +156,11 @@ std::string generate_filename(std::string const& material_string) {
 
    /* convert double zrconcentration to string */
    std::ostringstream zr_strs;
-   zr_strs << sys.zrconcentration;
+   zr_strs << sys.zr_concentration;
    std::string zr_string = zr_strs.str();
    /*****/
 
-   if (material_string == "smzrfe12")
-      filename = "./coordinates/smfe12.coords";
-   else if (material_string == "smfeti12" || material_string == "ndfeti12" || material_string == "smcoti12") {
-      sys.tidope = true;
-      filename = "./" + std::to_string(sys.ticoncentration) + "percent.coords";
-   }
-   else
-      filename = "./coordinates/" + material_string + "/" + material_string + ".coords";
+   filename = "./coordinates/" + material_string + "/" + material_string + ".coords";
 
    return filename;
 }

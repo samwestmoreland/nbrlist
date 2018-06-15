@@ -7,13 +7,24 @@
 #include "./data.hpp"
 #include "./io.hpp"
 
-void parse_input (std::string const& inputfile) {
+int output_header() {
 
-   std::ifstream fin;
-   fin.open(inputfile.c_str());
+   std::cout << std::endl;
+   std::cout << "***************************************************\n\n";
+   std::cout << "                   Nbrlist\n\n";
+   std::cout << "       Compiled on " << __DATE__ << " at " << __TIME__ << "\n";
+   std::cout << "***************************************************\n";
+
+   return EXIT_SUCCESS;
+}
+
+int read_inputfile() {
+
+   std::cout << "\nreading input file...";
+   std::ifstream inputfile ("nbrlist.in");
 
    /* exit if no input file found */
-   if (!fin.good()) {
+   if (!inputfile.good()) {
        std::cout << "no input file found. program exiting." << std::endl;
        exit(EXIT_FAILURE);
    }
@@ -21,7 +32,7 @@ void parse_input (std::string const& inputfile) {
    std::string line;
 
    /* read each line of file */
-   while (std::getline(fin, line))
+   while (std::getline(inputfile, line))
    {
       /* skip comments or blank lines */
       if ((line[0]=='#')||line.empty()) continue;
@@ -52,13 +63,13 @@ void parse_input (std::string const& inputfile) {
       /* loop through characters after equals sign */
       for (int i=endvar; i<line.length(); ++i) val.push_back(line.at(i));
 
-      if (key == "tmtmcutoff") sys.tmtmrcut = stof(val);
-      else if (key == "retmcutoff") sys.retmrcut = stof(val);
+      if (key == "tmtmcutoff") sys.rcut_tt = stof(val);
+      else if (key == "retmcutoff") sys.rcut_rt = stof(val);
 
       else if (key == "tt_factor") sys.tt_factor = stof(val);
       else if (key == "rt_factor") sys.rt_factor = stof(val);
 
-      else if (key == "retmexchangeconstant") sys.rt_exchange_constant = stof(val);
+      else if (key == "retmexchangeconstant") sys.rt_constant = stof(val);
 
       else if (key == "tracking") {
          if (val == "false") sys.tracking = false;
@@ -67,13 +78,15 @@ void parse_input (std::string const& inputfile) {
       }
 
       else if (key == "material") {
-         sys.material = val;
-         sys.material_int = convert_material_string_to_integer(val);
+         mat.name = val;
+         if (mat.id() == 0) {
+            std::cout << "material \'" << val << "\' not recognised. exiting.\n";
+            exit(EXIT_FAILURE);
+         }
       }
 
       else if (key == "zrconcentration") {
-         sys.zrconcentration = stof(val);
-         if (sys.zrconcentration != 0) sys.zrdoping = true;
+         sys.zr_concentration = stof(val);
       }
 
       else if (key == "domainwall") {
@@ -108,7 +121,7 @@ void parse_input (std::string const& inputfile) {
       }
 
       else if (key == "ticoncentration") {
-         sys.ticoncentration = stof(val);
+         sys.ti_concentration = stof(val);
       }
 
       else {
@@ -118,23 +131,29 @@ void parse_input (std::string const& inputfile) {
 
    }
 
+   /* output read parameters */
+   std::cout << "\nparameters read from input file:\n\n";
+   std::cout << "\tmaterial: " << mat.name << std::endl;
+   std::cout << "\ttm-tm cut-off radius: " << sys.rcut_tt << std::endl;
+   std::cout << "\tre-tm cut-off radius: " << sys.rcut_rt << std::endl;
+   std::cout << std::endl;
+   std::cout << "\tzr concentration: " << sys.zr_concentration << std::endl;
+   std::cout << "\tti concentration: " << sys.ti_concentration << std::endl;
+   std::cout << std::endl;
+   std::cout << "\tt-t exchange factor = " << sys.tt_factor << std::endl;
+   std::cout << "\tr-t exchange factor = " << sys.rt_factor << std::endl;
+
+   return EXIT_SUCCESS;
+
 }
 
-int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms) {
+int output_elements() {
 
-    for (int i=0; i<materials.size(); ++i)
-        std::cout << "\t"
-                  << materials[i].name << "\t"
-                  << materials[i].id << "\t"
-                  << material_specific_atom_count[i] << "\t"
-                  << float(material_specific_atom_count[i])/n_atoms*100. << "%\n";
-
-    if (materials[materials.size()-1].name == "Zr") {
-       std::cout << std::endl
-                 << "zr concentration: "
-                 << float(material_specific_atom_count[materials.size()-1])/(float(material_specific_atom_count[0])+float(material_specific_atom_count[materials.size()-1]))
-                 << std::endl;
-    }
+    for (int i=0; i<elements.size(); ++i)
+        std::cout
+           << "\t" << elements[i]
+           << "\t" << element_specific_atom_count[i]
+           << "\t" << float(element_specific_atom_count[i])/unitcell.size()*100. << "%\n";
 
     return EXIT_SUCCESS;
 }

@@ -9,11 +9,11 @@
 #    smco12
 #    smfeti12
 
-material = smfe12
+material = ndfe12
 
 ###### cut off distances
 tmtm cut off = 5.0
-retm cut off = 3.032
+retm cut off = 3.1
 
 ###### exchange constants/factors
 re tm exchange constant = 1e-21

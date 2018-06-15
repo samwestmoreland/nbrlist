@@ -1,10 +1,9 @@
 #ifndef IO_H_
 #define IO_H_
 
-int convert_material_string_to_integer(std::string const& material);
-int determine_material_id(std::string const& in_material, std::vector<material_t>& materials);
-void parse_input (std::string const& inputfile);
+int read_inputfile();
+int output_header();
 void array_to_rasmol(std::vector<atom_t> array, std::string const& arrayname);
-int output_materials(std::vector<material_t>& materials, std::vector<int>& material_specific_atom_count, int n_atoms);
+int output_elements();
 
 #endif /* IO_H_ */

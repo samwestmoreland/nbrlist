@@ -1,8 +1,10 @@
-#ifndef INIT_H_
-#define INIT_H_
+#ifndef INITIALISE_H_
+#define INITIALISE_H_
 
-/* prototypes for functions defined in initialise.cpp */
-int initialise_material(int material_int, std::string const& material);
+/* declarations of functions defined in initialise.cpp */
+int determine_element_id(std::string const& element);
+int get_unitcell_dimensions();
+int read_coordinatefile();
 std::string generate_filename(std::string const& material_string);
 
-#endif /* INIT_H_ */
+#endif /* INITIALISE_H_ */
