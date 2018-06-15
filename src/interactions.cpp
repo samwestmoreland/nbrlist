@@ -76,7 +76,6 @@ int calculate_interactions() {
 
                   }
                }
-
             }
          }
       }
@@ -130,13 +129,13 @@ int calculate_interactions() {
          }
 
       /* fill matrices */
-      for (int i=0; i<uc_interactions.size(); ++i) {
+      for (int interaction=0; interaction<uc_interactions.size(); ++interaction) {
 
-         int j = uc_interactions[i].j.mat;
-         int k = uc_interactions[i].i.mat;
+         int i = uc_interactions[interaction].i.mat;
+         int j = uc_interactions[interaction].j.mat;
 
-         element_interactions[j][k] += uc_interactions[i].exchange;
-         n_interactions[j][k] ++;
+         element_interactions[i][j] += uc_interactions[interaction].exchange;
+         n_interactions[i][j] ++;
 
       }
 
@@ -151,7 +150,7 @@ int calculate_interactions() {
          std::cout << std::endl;
       }
 
-      std::cout << "\nexchange matrix (total)\n";
+      std::cout << "\nexchange matrix (total)\n\n";
 
       for (int i=0; i<elements.size(); ++i) {
          for (int j=0; j<elements.size(); ++j) {
@@ -165,9 +164,7 @@ int calculate_interactions() {
          std::cout << std::endl;
       }
 
-      std::cout << std::endl;
-
-      std::cout << "\nexchange matrix (mean)\n";
+      std::cout << "\nexchange matrix (mean)\n\n";
 
       for (int i=0; i<elements.size(); ++i) {
          for (int j=0; j<elements.size(); ++j) {
@@ -184,7 +181,6 @@ int calculate_interactions() {
          std::cout << std::endl;
       }
 
-      std::cout << std::endl;
       std::cout << std::endl;
 
       outfile
@@ -262,7 +258,7 @@ double calculate_jij(pair_t pair) {
                   if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
                   /* Nd-Fe *** values from matsumoto (2016) *** */
-                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                  else if (((pair.i.is_tm() && pair.j.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
                      return sys.rt_constant;
 
                   /* Fe-Fe */
@@ -287,7 +283,7 @@ double calculate_jij(pair_t pair) {
                   if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
                   /* Sm-Fe */
-                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                  else if (((pair.i.is_tm() && pair.j.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
                      return sys.rt_constant;
 
                   /* Fe-Fe */
@@ -317,7 +313,7 @@ double calculate_jij(pair_t pair) {
                   if (pair.i.is_re() && pair.j.is_re()) return 0.0;
 
                   /* Sm-Co */
-                  else if (((pair.i.is_tm() && pair.i.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                  else if (((pair.i.is_tm() && pair.j.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
                      return sys.rt_constant;
 
                   /* Co-Co */

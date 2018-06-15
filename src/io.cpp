@@ -141,7 +141,7 @@ int read_inputfile() {
    std::cout << "\tti concentration: " << sys.ti_concentration << std::endl;
    std::cout << std::endl;
    std::cout << "\tt-t exchange factor = " << sys.tt_factor << std::endl;
-   std::cout << "\tr-t exchange factor = " << sys.rt_factor << std::endl;
+   std::cout << "\tr-t exchange constant = " << sys.rt_constant << std::endl;
 
    return EXIT_SUCCESS;
 
