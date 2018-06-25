@@ -10,10 +10,6 @@
 
 int calculate_interactions() {
 
-   std::cout << "\ncreating and populating super cell...\n";
-
-   populate_supercell();
-
    std::cout << "calculating interactions...\n\n";
 
    /* first and last index of central unitcell */
@@ -81,10 +77,6 @@ int calculate_interactions() {
       }
 
       std::cout
-         << "total interactions: "
-         << uc_interactions.size() << std::endl;
-
-      std::cout
          << "tm-tm interactions: "
          << tt_interaction_count << std::endl;
 
@@ -92,11 +84,15 @@ int calculate_interactions() {
          << "re-tm interactions: "
          << rt_interaction_count << std::endl;
 
+      std::cout
+         << "total interactions: "
+         << uc_interactions.size() << std::endl;
+
       std::cout << std::endl;
 
       std::cout
          << "mean neighbour distance: "
-         << total_neighbour_distance/interaction_count
+         << total_neighbour_distance/uc_interactions.size()
          << " A" << std::endl;
 
       std::cout
@@ -350,8 +346,33 @@ double calculate_jij(pair_t pair) {
                }
                break;
 
+      case 7 : { // ndfeti12
+
+                  double a = 121.00658;
+                  double b = 1.72543313196278;
+                  double c = 1e-21;
+                  double rij = pair.rij();
+
+                  double ndfe12_tt_factor = sys.tt_factor;
+                  double ndfe12_rt_factor = sys.rt_factor;
+
+                  /* Nd-Nd */
+                  if (pair.i.is_re() && pair.j.is_re()) return 0.0;
+
+                  /* Nd-Fe *** values from matsumoto (2016) *** */
+                  else if (((pair.i.is_tm() && pair.j.is_re()) || (pair.i.is_re() && pair.j.is_tm())) && (rij<=sys.rcut_rt))
+                     return sys.rt_constant;
+
+                  /* Fe-Fe */
+                  else if (pair.i.is_tm() && pair.j.is_tm())
+                     return sys.tt_factor * c*(a/(rij*rij*rij)-b);
+
+                  else return 0.0;
+               }
+               break;
+
       default :
-               std::cout << "invalid option. exiting.\n";
+               std::cout << "no exchange function found for this material. exiting.\n";
                exit(EXIT_FAILURE);
 
    } /* end of switch */
@@ -359,6 +380,8 @@ double calculate_jij(pair_t pair) {
 } /* end of calculate_jij function */
 
 int populate_supercell() {
+
+   std::cout << "\ncreating and populating super cell...\n";
 
    int global_id_counter = 0;
 

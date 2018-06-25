@@ -8,7 +8,7 @@
 /* global atom arrays */
 extern std::vector<atom_t> unitcell;
 extern std::vector<atom_t> supercell;
-extern std::vector<std::vector<std::vector<std::vector<atom_t> > > > domainwallsystem;
+extern std::vector<std::vector<std::vector<std::vector<atom_t> > > > dwsystem;
 
 /* unit cell interaction array */
 extern std::vector<pair_t> uc_interactions;

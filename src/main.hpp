@@ -5,7 +5,7 @@
 int set_default_parameters();
 int calculate_interactions();
 vec_t get_uc_dimensions_from_zr_content(double zrconcentration);
-int generate_domain_wall_system(vec_t dw_dim);
+int generate_domain_wall_system();
 
 int generate_large_system(std::vector<pair_t>& uc_interactions,
                           std::vector<atom_t>& unitcell,

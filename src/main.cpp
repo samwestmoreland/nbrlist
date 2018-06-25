@@ -14,6 +14,7 @@
 #include "./io.hpp"
 #include "./main.hpp"
 #include "./initialise.hpp"
+#include "./interactions.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -27,11 +28,15 @@ int main (int argc, char *argv[]) {
 
    read_coordinatefile();
 
+   populate_supercell();
+
+   identify_nearest_neighbours();
+
    /* this function generates a supercell, and using that populates an interactions array */
    calculate_interactions();
 
    /* generate a domain wall system */
-   if (sys.domainwall == true) generate_domain_wall_system(sys.dw_dim);
+   if (sys.domainwall == true) generate_domain_wall_system();
 
    return 0;
 
@@ -350,7 +355,7 @@ double calculate_rij (vec_t& i, vec_t& j) {
     return distance;
 }
 
-int generate_domain_wall_system(vec_t dw_dim) {
+int generate_domain_wall_system() {
 
    std::cout << "initialising domain wall system\n\n";
 
@@ -361,20 +366,25 @@ int generate_domain_wall_system(vec_t dw_dim) {
       z = 12 nm */
 
    std::ofstream dwucf ("domainwall.ucf");
-   vec_t sd; /* system dimensions in unitcells (dw_dim comes from input file and is in nm) */
-
-   sd.x = floor(dw_dim.x*10.0/mat.ucd.x+0.5);
-   sd.y = floor(dw_dim.y*10.0/mat.ucd.y+0.5);
-   sd.z = floor(dw_dim.z*10.0/mat.ucd.z+0.5);
 
    std::cout << "dimensions of domain wall system: ";
-   std::cout << dw_dim.x << " x " << dw_dim.y << " x " << dw_dim.z << " nm\n";
+   std::cout
+      << sys.dw_dim.x << " x "
+      << sys.dw_dim.y << " x "
+      << sys.dw_dim.z << " nm\n";
+
+   /* system dimensions in unitcells (dw_dim comes from input file and is in nm) */
+   vec_t sd;
+   sd.x = floor(sys.dw_dim.x*10.0/mat.ucd.x+0.5);
+   sd.y = floor(sys.dw_dim.y*10.0/mat.ucd.y+0.5);
+   sd.z = floor(sys.dw_dim.z*10.0/mat.ucd.z+0.5);
 
    int natoms = sd.x * sd.y * sd.z * unitcell.size(); // number of atoms in system
    std::cout << "number of atoms in system: " << natoms << "\n";
 
    /* output coordinates to unit cell file */
-   dwucf << "# Unit cell size:\n"
+   dwucf
+      << "# Unit cell size:\n"
       <<  sd.x*mat.ucd.x << "\t"
       <<  sd.y*mat.ucd.y << "\t"
       <<  sd.z*mat.ucd.z << "\n"
@@ -395,11 +405,11 @@ int generate_domain_wall_system(vec_t dw_dim) {
    if (sys.centrepin == false) {
 
    /* resize vectors */
-   domainwallsystem.resize(sd.x);
+   dwsystem.resize(sd.x);
    for (int i=0; i<sd.x; i++) {
-      domainwallsystem[i].resize(sd.y);
+      dwsystem[i].resize(sd.y);
       for (int j=0; j<sd.y; j++) {
-         domainwallsystem[i][j].resize(sd.z);
+         dwsystem[i][j].resize(sd.z);
          for (int k=0; k<sd.z; k++) {
 
             /* loop through unitcell atoms */
@@ -443,7 +453,7 @@ int generate_domain_wall_system(vec_t dw_dim) {
                   << 0 << "\t"
                   << tmp.hcat << "\n";
 
-               domainwallsystem[i][j][k].push_back(tmp);
+               dwsystem[i][j][k].push_back(tmp);
             }
          }
       }
@@ -459,11 +469,11 @@ int generate_domain_wall_system(vec_t dw_dim) {
    int n_pin = 0;
 
    /* resize vectors */
-   domainwallsystem.resize(sd.x);
+   dwsystem.resize(sd.x);
    for (int i=0; i<sd.x; i++) {
-      domainwallsystem[i].resize(sd.y);
+      dwsystem[i].resize(sd.y);
       for (int j=0; j<sd.y; j++) {
-         domainwallsystem[i][j].resize(sd.z);
+         dwsystem[i][j].resize(sd.z);
          for (int k=0; k<sd.z; k++) {
 
             /* loop through unitcell atoms */
@@ -519,7 +529,7 @@ int generate_domain_wall_system(vec_t dw_dim) {
                   << 0 << "\t"
                   << tmp.hcat << "\n";
 
-               domainwallsystem[i][j][k].push_back(tmp);
+               dwsystem[i][j][k].push_back(tmp);
             }
          }
       }
@@ -556,15 +566,15 @@ int generate_domain_wall_system(vec_t dw_dim) {
                for (int p=0; p<uc_interactions.size(); p++) {
 
                   /* if interaction info refers to correct atom */
-                  if (domainwallsystem[i][j][k][atom].aid == uc_interactions[p].i.aid) {
+                  if (dwsystem[i][j][k][atom].aid == uc_interactions[p].i.aid) {
 
                      pair_t tmp;
 
                      tmp.iid = int_counter;
-                     tmp.i.gid = domainwallsystem[i][j][k][atom].gid;
+                     tmp.i.gid = dwsystem[i][j][k][atom].gid;
 
-                     tmp.i.mat = domainwallsystem[i][j][k][atom].mat;
-                     tmp.i.element = domainwallsystem[i][j][k][atom].element;
+                     tmp.i.mat = dwsystem[i][j][k][atom].mat;
+                     tmp.i.element = dwsystem[i][j][k][atom].element;
 
                      tmp.j.element = uc_interactions[p].j.element;
 
@@ -635,12 +645,12 @@ int generate_domain_wall_system(vec_t dw_dim) {
                         }
 
                         /* having changed uc coordinates obtain j.gid */
-                        tmp.j.gid = domainwallsystem[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+                        tmp.j.gid = dwsystem[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
 
                      }
 
                      /* else it is within bounds so simply extract j.gid */
-                     else tmp.j.gid = domainwallsystem[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
+                     else tmp.j.gid = dwsystem[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
 
                      uc_interactions.push_back(tmp);
 
@@ -690,7 +700,7 @@ int set_default_parameters() {
 
    /* doping concentrations */
    sys.zr_concentration = 0.0;
-   sys.ti_concentration = 0.0;
+   sys.ti = 0.0;
 
    /* flags */
    sys.tracking = false;

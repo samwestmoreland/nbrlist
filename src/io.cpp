@@ -66,8 +66,9 @@ int read_inputfile() {
       if (key == "tmtmcutoff") sys.rcut_tt = stof(val);
       else if (key == "retmcutoff") sys.rcut_rt = stof(val);
 
-      else if (key == "tt_factor") sys.tt_factor = stof(val);
-      else if (key == "rt_factor") sys.rt_factor = stof(val);
+      else if (key == "ttfactor") sys.tt_factor = stof(val);
+      else if (key == "rtfactor") sys.rt_factor = stof(val);
+      else if (key == "rtshell") sys.rt_shell = stoi(val);
 
       else if (key == "retmexchangeconstant") sys.rt_constant = stof(val);
 
@@ -87,6 +88,10 @@ int read_inputfile() {
 
       else if (key == "zrconcentration") {
          sys.zr_concentration = stof(val);
+      }
+
+      else if (key == "ticoncentration") {
+         sys.ti = stof(val);
       }
 
       else if (key == "domainwall") {
@@ -120,10 +125,6 @@ int read_inputfile() {
          sys.dw_dim.z = stof(val);
       }
 
-      else if (key == "ticoncentration") {
-         sys.ti_concentration = stof(val);
-      }
-
       else {
          std::cout << "input file parse error: i don't know what " << "\"" << key << "\" means\n";
          exit(EXIT_FAILURE);
@@ -134,11 +135,11 @@ int read_inputfile() {
    /* output read parameters */
    std::cout << "\nparameters read from input file:\n\n";
    std::cout << "\tmaterial: " << mat.name << std::endl;
-   std::cout << "\ttm-tm cut-off radius: " << sys.rcut_tt << std::endl;
-   std::cout << "\tre-tm cut-off radius: " << sys.rcut_rt << std::endl;
+   std::cout << "\ttm-tm cut-off radius: " << sys.rcut_tt << "A" << std::endl;
+   std::cout << "\tre-tm cut-off shell: " << sys.rt_shell << std::endl;
    std::cout << std::endl;
    std::cout << "\tzr concentration: " << sys.zr_concentration << std::endl;
-   std::cout << "\tti concentration: " << sys.ti_concentration << std::endl;
+   std::cout << "\tti concentration: " << sys.ti << std::endl;
    std::cout << std::endl;
    std::cout << "\tt-t exchange factor = " << sys.tt_factor << std::endl;
    std::cout << "\tr-t exchange constant = " << sys.rt_constant << std::endl;

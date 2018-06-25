@@ -54,14 +54,49 @@ int get_unitcell_dimensions() {
          mat.ucd.z = 0;
          break;
 
+      case 7 :    /* ndfeti12 */
+         if (sys.ti == 0) {
+            mat.ucd.x = 17.025013;
+            mat.ucd.y = 17.025013;
+            mat.ucd.z = 4.842164;
+         }
+
+         else if (sys.ti == 1) {
+            mat.ucd.x = 17.040534;
+            mat.ucd.y = 17.046127;
+            mat.ucd.z = 4.8449;
+         }
+
+         else if (sys.ti == 2) {
+            mat.ucd.x = 17.061906;
+            mat.ucd.y = 17.061906;
+            mat.ucd.z = 4.847393;
+         }
+
+         else if (sys.ti == 3) {
+            mat.ucd.x = 17.07819;
+            mat.ucd.y = 17.082273;
+            mat.ucd.z = 4.849857;
+         }
+
+         else if (sys.ti == 4) {
+            mat.ucd.x = 17.098785;
+            mat.ucd.y = 17.098785;
+            mat.ucd.z = 4.85208;
+         }
+
+         else {
+            std::cout << "no titanium concentration specified. exiting.\n";
+            exit(EXIT_FAILURE);
+         }
    }
 
    std::cout << std::endl;
 
    std::cout << "unit cell dimensions:\n\n";
-   std::cout << "\tx = " << mat.ucd.x << std::endl;
-   std::cout << "\ty = " << mat.ucd.y << std::endl;
-   std::cout << "\tz = " << mat.ucd.z << std::endl;
+   std::cout << "\tx = " << mat.ucd.x << " A" << std::endl;
+   std::cout << "\ty = " << mat.ucd.y << " A" << std::endl;
+   std::cout << "\tz = " << mat.ucd.z << " A" << std::endl;
 
    std::cout << std::endl;
 
@@ -71,7 +106,12 @@ int get_unitcell_dimensions() {
 
 int read_coordinatefile() {
 
-   std::string filename = "./coordinates/" + mat.name + ".coords";
+   std::string filename;
+
+   if (mat.name == "ndfeti12")
+      filename = "./coordinates/ndfeti12/" + std::to_string(sys.ti) + ".coords";
+   else
+      filename = "./coordinates/" + mat.name + ".coords";
 
    std::ifstream fin (filename.c_str());
 
@@ -163,4 +203,87 @@ std::string generate_filename(std::string const& material_string) {
    filename = "./coordinates/" + material_string + "/" + material_string + ".coords";
 
    return filename;
+}
+
+/* this function identifies the atoms nearest to each rare-earth */
+int identify_nearest_neighbours() {
+
+   int start;
+   int end;
+
+   start = (supercell.size()-unitcell.size())/2;
+   end   = (supercell.size()+unitcell.size())/2;
+
+   double shell_1_distance = 1e3;
+   double shell_2_distance = 1e3;
+   double shell_3_distance = 1e3;
+   double shell_4_distance = 1e3;
+   double shell_5_distance = 1e3;
+
+   /* loop through central cell of supercell */
+   for (int i=start; i<end; ++i) {
+
+      for (int j=0; j<supercell.size(); ++j) {
+
+         /* define pair or atoms */
+         pair_t pair;
+         pair.i = supercell[i];
+         pair.j = supercell[j];
+
+         if ((pair.i.is_re()) && pair.j.is_tm()) {
+
+            double separation = pair.rij();
+
+            if (shell_1_distance-separation > 1e-10) {
+               shell_5_distance = shell_4_distance;
+               shell_4_distance = shell_3_distance;
+               shell_3_distance = shell_2_distance;
+               shell_2_distance = shell_1_distance;
+               shell_1_distance = separation;
+            }
+
+            else if (shell_2_distance-separation > 1e-10 && separation-shell_1_distance > 1e-10) {
+               shell_5_distance = shell_4_distance;
+               shell_4_distance = shell_3_distance;
+               shell_3_distance = shell_2_distance;
+               shell_2_distance = separation;
+            }
+
+            else if (shell_3_distance-separation > 1e-10 && separation-shell_2_distance > 1e-10) {
+               shell_5_distance = shell_4_distance;
+               shell_4_distance = shell_3_distance;
+               shell_3_distance = separation;
+            }
+
+            else if (shell_4_distance-separation > 1e-10 && separation-shell_3_distance > 1e-10) {
+               shell_5_distance = shell_4_distance;
+               shell_4_distance = separation;
+            }
+
+            else if (shell_5_distance-separation > 1e-10 && separation-shell_4_distance > 1e-10) {
+               shell_5_distance = separation;
+            }
+
+         }
+      }
+   }
+
+   std::cout << "RE neighbours:\n\n";
+   std::cout << "\t1st neighbour distance: " << shell_1_distance << " A" << std::endl;
+   std::cout << "\t2nd neighbour distance: " << shell_2_distance << " A" << std::endl;
+   std::cout << "\t3rd neighbour distance: " << shell_3_distance << " A" << std::endl;
+   std::cout << "\t4th neighbour distance: " << shell_4_distance << " A" << std::endl;
+   std::cout << "\t5th neighbour distance: " << shell_5_distance << " A" << std::endl;
+   std::cout << std::endl;
+
+   if (sys.rt_shell == 1) sys.rcut_rt = (shell_2_distance + shell_1_distance)/2.0;
+   else if (sys.rt_shell == 2) sys.rcut_rt = (shell_3_distance + shell_2_distance)/2.0;
+   else if (sys.rt_shell == 3) sys.rcut_rt = (shell_4_distance + shell_3_distance)/2.0;
+   else if (sys.rt_shell == 4) sys.rcut_rt = (shell_5_distance + shell_4_distance)/2.0;
+   else if (sys.rt_shell == 5) sys.rcut_rt = shell_5_distance + 0.001;
+
+   std::cout << "RE-TM cut-off set to " << sys.rcut_rt << " A\n";
+
+   return EXIT_SUCCESS;
+
 }

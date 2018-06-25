@@ -51,12 +51,13 @@ struct parameter_t {
 
     double rcut_tt;
     double rcut_rt;
+    int rt_shell;
     double tt_factor;
     double rt_factor;
     double rt_constant;
 
     double zr_concentration;
-    int ti_concentration;
+    int ti;    // ti concentration
 
     bool tracking;
     bool domainwall;
@@ -86,7 +87,13 @@ class atom_t {
              element == "Co" ||
              element == "Co8i" ||
              element == "Co8j" ||
-             element == "Co8f")
+             element == "Co8f" ||
+             element == "Fe16k1" ||
+             element == "Fe16k2" ||
+             element == "Fe8j1" ||
+             element == "Fe8j2" ||
+             element == "Fe4e" ||
+             element == "Fe4c")
             return true;
          else return false;
       }
@@ -94,7 +101,9 @@ class atom_t {
       bool is_re() {
 
          if (element == "Nd" ||
-             element == "Sm")
+             element == "Sm" ||
+             element == "Nd4f" ||
+             element == "Nd4g")
             return true;
          else return false;
       }
@@ -112,6 +121,7 @@ class material_t {
          else if (name == "smfe12") return 4;
          else if (name == "smco12") return 5;
          else if (name == "interface") return 6;
+         else if (name == "ndfeti12") return 7;
          else return 0;
       }
 };
