@@ -30,7 +30,7 @@ int main (int argc, char *argv[]) {
 
    populate_supercell();
 
-   identify_nearest_neighbours();
+   neighbour_routines();
 
    /* this function generates a supercell, and using that populates an interactions array */
    calculate_interactions();

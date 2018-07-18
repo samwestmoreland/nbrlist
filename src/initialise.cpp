@@ -205,8 +205,17 @@ std::string generate_filename(std::string const& material_string) {
    return filename;
 }
 
+int neighbour_routines() {
+
+   identify_re_neighbours();
+   identify_tm_neighbours();
+
+   return EXIT_SUCCESS;
+
+}
+
 /* this function identifies the atoms nearest to each rare-earth */
-int identify_nearest_neighbours() {
+int identify_re_neighbours() {
 
    int start;
    int end;
@@ -223,49 +232,52 @@ int identify_nearest_neighbours() {
    /* loop through central cell of supercell */
    for (int i=start; i<end; ++i) {
 
-      for (int j=0; j<supercell.size(); ++j) {
+      /* only continue with next loop if first is rare-earth */
+      if (supercell[i].is_re())
+         for (int j=0; j<supercell.size(); ++j) {
 
-         /* define pair or atoms */
-         pair_t pair;
-         pair.i = supercell[i];
-         pair.j = supercell[j];
+            /* define pair or atoms */
+            pair_t pair;
+            pair.i = supercell[i];
+            pair.j = supercell[j];
 
-         if ((pair.i.is_re()) && pair.j.is_tm()) {
+            /* only interested in transition metal neighbours */
+            if (pair.j.is_tm()) {
 
-            double separation = pair.rij();
+               double separation = pair.rij();
 
-            if (shell_1_distance-separation > 1e-10) {
-               shell_5_distance = shell_4_distance;
-               shell_4_distance = shell_3_distance;
-               shell_3_distance = shell_2_distance;
-               shell_2_distance = shell_1_distance;
-               shell_1_distance = separation;
+               if (shell_1_distance-separation > 1e-10) {
+                  shell_5_distance = shell_4_distance;
+                  shell_4_distance = shell_3_distance;
+                  shell_3_distance = shell_2_distance;
+                  shell_2_distance = shell_1_distance;
+                  shell_1_distance = separation;
+               }
+
+               else if (shell_2_distance-separation > 1e-10 && separation-shell_1_distance > 1e-10) {
+                  shell_5_distance = shell_4_distance;
+                  shell_4_distance = shell_3_distance;
+                  shell_3_distance = shell_2_distance;
+                  shell_2_distance = separation;
+               }
+
+               else if (shell_3_distance-separation > 1e-10 && separation-shell_2_distance > 1e-10) {
+                  shell_5_distance = shell_4_distance;
+                  shell_4_distance = shell_3_distance;
+                  shell_3_distance = separation;
+               }
+
+               else if (shell_4_distance-separation > 1e-10 && separation-shell_3_distance > 1e-10) {
+                  shell_5_distance = shell_4_distance;
+                  shell_4_distance = separation;
+               }
+
+               else if (shell_5_distance-separation > 1e-10 && separation-shell_4_distance > 1e-10) {
+                  shell_5_distance = separation;
+               }
+
             }
-
-            else if (shell_2_distance-separation > 1e-10 && separation-shell_1_distance > 1e-10) {
-               shell_5_distance = shell_4_distance;
-               shell_4_distance = shell_3_distance;
-               shell_3_distance = shell_2_distance;
-               shell_2_distance = separation;
-            }
-
-            else if (shell_3_distance-separation > 1e-10 && separation-shell_2_distance > 1e-10) {
-               shell_5_distance = shell_4_distance;
-               shell_4_distance = shell_3_distance;
-               shell_3_distance = separation;
-            }
-
-            else if (shell_4_distance-separation > 1e-10 && separation-shell_3_distance > 1e-10) {
-               shell_5_distance = shell_4_distance;
-               shell_4_distance = separation;
-            }
-
-            else if (shell_5_distance-separation > 1e-10 && separation-shell_4_distance > 1e-10) {
-               shell_5_distance = separation;
-            }
-
          }
-      }
    }
 
    std::cout << "RE neighbours:\n\n";
@@ -283,6 +295,100 @@ int identify_nearest_neighbours() {
    else if (sys.rt_shell == 5) sys.rcut_rt = shell_5_distance + 0.001;
 
    std::cout << "RE-TM cut-off set to " << sys.rcut_rt << " A\n";
+
+   return EXIT_SUCCESS;
+
+}
+
+int identify_tm_neighbours() {
+
+   int start;
+   int end;
+
+   start = (supercell.size()-unitcell.size())/2;
+   end   = (supercell.size()+unitcell.size())/2;
+
+   /* cut-off radii */
+   double shell1cut = 1.0;
+   double shell2cut = 2.0;
+   double shell3cut = 3.0;
+   double shell4cut = 4.0;
+   double shell5cut = 5.0;
+
+   /* atoms in each shell */
+   double n_shell1_total = 0;
+   double n_shell2_total = 0;
+   double n_shell3_total = 0;
+   double n_shell4_total = 0;
+   double n_shell5_total = 0;
+
+   double n_tm_atoms = 0;
+
+   for (int i=start; i<end; ++i) {
+      if (supercell[i].is_tm()) {
+
+         n_tm_atoms ++;
+
+         double n_shell1 = 0;
+         double n_shell2 = 0;
+         double n_shell3 = 0;
+         double n_shell4 = 0;
+         double n_shell5 = 0;
+
+         for (int j=0; j<supercell.size(); ++j) {
+
+            /* create a 'pair' */
+            pair_t pair;
+            pair.i = supercell[i];
+            pair.j = supercell[j];
+
+            if (pair.j.is_tm() && !pair.are_same_atom()) {
+
+               if (pair.rij() <= shell1cut) {
+                  n_shell1 ++;
+                  n_shell2 ++;
+                  n_shell3 ++;
+                  n_shell4 ++;
+                  n_shell5 ++;
+               }
+
+               else if (pair.rij() <= shell2cut) {
+                  n_shell2 ++;
+                  n_shell3 ++;
+                  n_shell4 ++;
+                  n_shell5 ++;
+               }
+
+               else if (pair.rij() <= shell3cut) {
+                  n_shell3 ++;
+                  n_shell4 ++;
+                  n_shell5 ++;
+               }
+
+               else if (pair.rij() <= shell4cut) {
+                  n_shell4 ++;
+                  n_shell5 ++;
+               }
+
+               else if (pair.rij() <= shell5cut)
+                  n_shell5 ++;
+            }
+         }
+
+         n_shell1_total += n_shell1;
+         n_shell2_total += n_shell2;
+         n_shell3_total += n_shell3;
+         n_shell4_total += n_shell4;
+         n_shell5_total += n_shell5;
+
+      }
+   }
+
+   std::cout << "\tshell 1: " << n_shell1_total / n_tm_atoms << std::endl;
+   std::cout << "\tshell 2: " << n_shell2_total / n_tm_atoms << std::endl;
+   std::cout << "\tshell 3: " << n_shell3_total / n_tm_atoms << std::endl;
+   std::cout << "\tshell 4: " << n_shell4_total / n_tm_atoms << std::endl;
+   std::cout << "\tshell 5: " << n_shell5_total / n_tm_atoms << std::endl;
 
    return EXIT_SUCCESS;
 
