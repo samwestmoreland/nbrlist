@@ -9,7 +9,5 @@ input
 /input
 build/
 nbrlist.log
-coordinates/
-nbrlist.in
 *.dat
 .syntastic_cppcheck_config
