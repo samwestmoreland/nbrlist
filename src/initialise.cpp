@@ -280,7 +280,7 @@ int identify_re_neighbours() {
          }
    }
 
-   std::cout << "RE neighbours:\n\n";
+   std::cout << "RE--TM neighbours:\n\n";
    std::cout << "\t1st neighbour distance: " << shell_1_distance << " A" << std::endl;
    std::cout << "\t2nd neighbour distance: " << shell_2_distance << " A" << std::endl;
    std::cout << "\t3rd neighbour distance: " << shell_3_distance << " A" << std::endl;
@@ -294,7 +294,7 @@ int identify_re_neighbours() {
    else if (sys.rt_shell == 4) sys.rcut_rt = (shell_5_distance + shell_4_distance)/2.0;
    else if (sys.rt_shell == 5) sys.rcut_rt = shell_5_distance + 0.001;
 
-   std::cout << "RE-TM cut-off set to " << sys.rcut_rt << " A\n";
+   std::cout << "\tRE-TM cut-off set to " << sys.rcut_rt << " A\n";
 
    return EXIT_SUCCESS;
 
@@ -384,11 +384,12 @@ int identify_tm_neighbours() {
       }
    }
 
-   std::cout << "\tshell 1: " << n_shell1_total / n_tm_atoms << std::endl;
-   std::cout << "\tshell 2: " << n_shell2_total / n_tm_atoms << std::endl;
-   std::cout << "\tshell 3: " << n_shell3_total / n_tm_atoms << std::endl;
-   std::cout << "\tshell 4: " << n_shell4_total / n_tm_atoms << std::endl;
-   std::cout << "\tshell 5: " << n_shell5_total / n_tm_atoms << std::endl;
+   std::cout << "\nTM--TM neighbours:\n\n";
+   std::cout << "\t1.0 A shell: " << n_shell1_total / n_tm_atoms << std::endl;
+   std::cout << "\t2.0 A shell: " << n_shell2_total / n_tm_atoms << std::endl;
+   std::cout << "\t3.0 A shell: " << n_shell3_total / n_tm_atoms << std::endl;
+   std::cout << "\t4.0 A shell: " << n_shell4_total / n_tm_atoms << std::endl;
+   std::cout << "\t5.0 A shell: " << n_shell5_total / n_tm_atoms << std::endl;
 
    return EXIT_SUCCESS;
 

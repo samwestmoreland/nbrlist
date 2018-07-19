@@ -9,17 +9,16 @@
 #    smco12
 #    smfeti12
 
-material = ndfe12
+material = ndfeti12
 
 ###### cut off distances
-tmtm cut off = 5.0
-retm cut off = 3.1
+tmtm cut off = 4.0
+rt shell = 2
 
 ###### exchange constants/factors
 re tm exchange constant = 1e-21
 
-tt_factor = 0.65
-# rt_factor = 0.20
+tt factor = 0.65
 
 ###### cell tracking program
 tracking = false
@@ -37,4 +36,4 @@ centre pin = false
 # dw system dimension z = 3
 
 ###### to use this make sure material is e.g. smfeti12
-# ti concentration = 0
+ti concentration = 1

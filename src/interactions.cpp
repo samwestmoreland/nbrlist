@@ -10,6 +10,7 @@
 
 int calculate_interactions() {
 
+   std::cout << std::endl;
    std::cout << "calculating interactions...\n\n";
 
    /* first and last index of central unitcell */
