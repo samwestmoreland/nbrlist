@@ -11,3 +11,4 @@ build/
 nbrlist.log
 *.dat
 .syntastic_cppcheck_config
+nbrlist.in

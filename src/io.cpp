@@ -68,7 +68,16 @@ int read_inputfile() {
 
       else if (key == "ttfactor") sys.tt_factor = stof(val);
       else if (key == "rtfactor") sys.rt_factor = stof(val);
-      else if (key == "rtshell") sys.rt_shell = stoi(val);
+
+      else if (key == "rtshell") {
+         sys.rt_shell = stoi(val);
+         sys.rt_shell_cut = true;
+      }
+
+      else if (key == "rtcutoff") {
+         sys.rcut_rt = stof(val);
+         sys.rt_shell_cut = false;
+      }
 
       else if (key == "retmexchangeconstant") sys.rt_constant = stof(val);
 
@@ -135,8 +144,11 @@ int read_inputfile() {
    /* output read parameters */
    std::cout << "\nparameters read from input file:\n\n";
    std::cout << "\tmaterial: " << mat.name << std::endl;
-   std::cout << "\ttm-tm cut-off radius: " << sys.rcut_tt << "A" << std::endl;
-   std::cout << "\tre-tm cut-off shell: " << sys.rt_shell << std::endl;
+   std::cout << "\ttm-tm cut-off radius: " << sys.rcut_tt << " A" << std::endl;
+
+   if (sys.rt_shell_cut) std::cout << "\tre-tm cut-off shell: " << sys.rt_shell << std::endl;
+   else std::cout << "\tre-tm cut-off radius: " << sys.rcut_rt << " A" << std::endl;
+
    std::cout << std::endl;
    std::cout << "\tzr concentration: " << sys.zr_concentration << std::endl;
    std::cout << "\tti concentration: " << sys.ti << std::endl;

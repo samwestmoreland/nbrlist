@@ -207,7 +207,7 @@ std::string generate_filename(std::string const& material_string) {
 
 int neighbour_routines() {
 
-   identify_re_neighbours();
+   if (sys.rt_shell_cut) identify_re_neighbours();
    identify_tm_neighbours();
 
    return EXIT_SUCCESS;
@@ -229,6 +229,10 @@ int identify_re_neighbours() {
    double shell_4_distance = 1e3;
    double shell_5_distance = 1e3;
 
+   std::ofstream re_neighbours ("re_neighbours.dat");
+
+   std::cout << std::endl;
+
    /* loop through central cell of supercell */
    for (int i=start; i<end; ++i) {
 
@@ -245,6 +249,8 @@ int identify_re_neighbours() {
             if (pair.j.is_tm()) {
 
                double separation = pair.rij();
+
+               re_neighbours << separation << std::endl;
 
                if (shell_1_distance-separation > 1e-10) {
                   shell_5_distance = shell_4_distance;

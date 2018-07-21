@@ -63,6 +63,8 @@ struct parameter_t {
     bool domainwall;
     bool centrepin;
 
+    bool rt_shell_cut;
+
     vec_t dw_dim;
 };
 

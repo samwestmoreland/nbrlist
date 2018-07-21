@@ -13,7 +13,8 @@ material = ndfeti12
 
 ###### cut off distances
 tmtm cut off = 4.0
-rt shell = 2
+rt cut off = 3.2
+# rt shell = 2 # this only works for non-md-relaxed systems
 
 ###### exchange constants/factors
 re tm exchange constant = 1e-21
@@ -36,4 +37,4 @@ centre pin = false
 # dw system dimension z = 3
 
 ###### to use this make sure material is e.g. smfeti12
-ti concentration = 1
+ti concentration = 4

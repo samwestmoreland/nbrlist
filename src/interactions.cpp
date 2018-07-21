@@ -420,7 +420,7 @@ int populate_supercell() {
             }
 
    std::cout
-      << "atoms in super cell: " << supercell.size() << "\n\n";
+      << "atoms in super cell: " << supercell.size() << "\n";
 
 //   array_to_rasmol(supercell, "supercell");
 
