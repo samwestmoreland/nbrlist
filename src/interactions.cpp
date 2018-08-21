@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 
 /* project header files */
 #include "./initialise.hpp"
@@ -42,9 +43,6 @@ int calculate_interactions() {
             /* if distance less than rcut and not same atom */
             if (pair.are_within_range(sys.rcut_rt, sys.rcut_tt) && !pair.are_same_atom()) {
 
-               /* add neighbour distance to total */
-               total_neighbour_distance += pair.rij();
-
                /* assign interaction id */
                pair.iid = interaction_count;
 
@@ -55,10 +53,13 @@ int calculate_interactions() {
                pair.exchange = calculate_jij(pair);
 
                /* put interaction into array */
-               if (pair.exchange >= 1e-30) {
+               if (abs(pair.exchange) > 1e-30) {
 
                   uc_interactions.push_back(pair);
                   interaction_count ++;
+
+                  /* add neighbour distance to total */
+                  total_neighbour_distance += pair.rij();
 
                   /* if interaction is fe-fe or fe-co */
                   if (pair.i.is_tm() && pair.j.is_tm()) {
