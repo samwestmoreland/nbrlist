@@ -53,7 +53,7 @@ int calculate_interactions() {
                pair.exchange = calculate_jij(pair);
 
                /* put interaction into array */
-               if (abs(pair.exchange) > 1e-30) {
+               if (fabs(pair.exchange) > 1e-30) {
 
                   uc_interactions.push_back(pair);
                   interaction_count ++;
