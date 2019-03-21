@@ -49,23 +49,25 @@ public:
 
 struct parameter_t {
 
-    double rcut_tt;
-    double rcut_rt;
-    int rt_shell;
-    double tt_factor;
-    double rt_factor;
-    double rt_constant;
+   bool nn;
+   double rcut_tt;
+   double rcut_rt;
+   int rt_shell;
+   double tt_factor;
+   double rt_factor;
+   double rt_constant;
+   double tt_constant;
 
-    double zr_concentration;
-    int ti;    // ti concentration
+   double zr_concentration;
+   int ti;    // ti concentration
 
-    bool tracking;
-    bool domainwall;
-    bool centrepin;
+   bool tracking;
+   bool domainwall;
+   bool centrepin;
 
-    bool rt_shell_cut;
+   bool rt_shell_cut;
 
-    vec_t dw_dim;
+   vec_t dw_dim;
 };
 
 // class for all atoms in system

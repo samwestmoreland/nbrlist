@@ -49,9 +49,9 @@ int get_unitcell_dimensions() {
          break;
 
       case 6 :    /* interface */
-         mat.ucd.x = 26.181;
-         mat.ucd.y = 26.181;
-         mat.ucd.z = 0;
+         mat.ucd.x = 26.403;
+         mat.ucd.y = 26.403;
+         mat.ucd.z = 255.93180;
          break;
 
       case 7 :    /* ndfeti12 */
@@ -110,6 +110,8 @@ int read_coordinatefile() {
 
    if (mat.name == "ndfeti12")
       filename = "./coordinates/ndfeti12/" + std::to_string(sys.ti) + ".coords";
+   else if (mat.name == "interface")
+      filename = "./coordinates/interfaces/mirror_shifted.coords";
    else
       filename = "./coordinates/" + mat.name + ".coords";
 
@@ -140,12 +142,14 @@ int read_coordinatefile() {
       tmp.uc.z = 0;
 
       /* determine element id */
-      tmp.mat = determine_element_id(tmp.element);
+      if (mat.name != "interface") tmp.mat = determine_element_id(tmp.element);
+      else tmp.mat = determine_element_id_for_interface_system(tmp.element, tmp.pos.z);
 
-      /* scale atom coordinates */
-      tmp.pos = tmp.pos * mat.ucd;
+      /* scale atom coordinates (except for interface system as they're already scaled) */
+      if (mat.name != "interface") tmp.pos = tmp.pos * mat.ucd;
 
       unitcell.push_back(tmp);
+
    }
 
    std::cout << "done.\n";
@@ -187,6 +191,28 @@ int read_coordinatefile() {
    }
 
    return EXIT_SUCCESS;
+}
+
+int modify_element_ids_for_interface_system() {
+
+
+
+   for (int i=0; i<unitcell.size(); ++i) {
+
+      /* this is the alpha fe */
+      if (unitcell[i].pos.z > 74.0 &&
+          unitcell[i].pos.z < 182.0 &&
+          unitcell[i].mat == 1)
+
+         unitcell[i].mat = 4;
+
+      /* this is the second ndfeb phase */
+      else if (unitcell[i].pos.z > 182.0) unitcell[i].mat += 5;
+
+   }
+
+   return EXIT_SUCCESS;
+
 }
 
 /* function definition */
@@ -238,6 +264,7 @@ int identify_re_neighbours() {
 
       /* only continue with next loop if first is rare-earth */
       if (supercell[i].is_re())
+
          for (int j=0; j<supercell.size(); ++j) {
 
             /* define pair or atoms */

@@ -12,7 +12,7 @@ int output_header() {
    std::cout << std::endl;
    std::cout << "***************************************************\n\n";
    std::cout << "                   Nbrlist\n\n";
-   std::cout << "       Compiled on " << __DATE__ << " at " << __TIME__ << "\n";
+   std::cout << "       Compiled on " << __DATE__ << " at " << __TIME__ << "\n\n";
    std::cout << "***************************************************\n";
 
    return EXIT_SUCCESS;
@@ -63,7 +63,9 @@ int read_inputfile() {
       /* loop through characters after equals sign */
       for (int i=endvar; i<line.length(); ++i) val.push_back(line.at(i));
 
-      if (key == "tmtmcutoff") sys.rcut_tt = stof(val);
+      if (key == "nearestneighbour") sys.nn = true;
+
+      else if (key == "tmtmcutoff") sys.rcut_tt = stof(val);
       else if (key == "retmcutoff") sys.rcut_rt = stof(val);
 
       else if (key == "ttfactor") sys.tt_factor = stof(val);
@@ -80,6 +82,7 @@ int read_inputfile() {
       }
 
       else if (key == "retmexchangeconstant") sys.rt_constant = stof(val);
+      else if (key == "tmtmexchangeconstant") sys.tt_constant = stof(val);
 
       else if (key == "tracking") {
          if (val == "false") sys.tracking = false;

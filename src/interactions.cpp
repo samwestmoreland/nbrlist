@@ -35,6 +35,8 @@ int calculate_interactions() {
          /* loop through super cell (looking for atom j) */
          for (int j=0; j<supercell.size(); ++j) {
 
+//            if (!(supercell[j].element == "Fe8i")) continue;
+
             /* create a temporary pair of atoms */
             pair_t pair;
             pair.i = supercell[i];
@@ -330,7 +332,6 @@ double calculate_jij(pair_t pair) {
                   double rij = pair.rij();
 
                   double ndfeb_tt_factor = sys.tt_factor;
-                  double ndfeb_rt_factor = sys.rt_factor;
 
                   /* Nd-Nd */
                   if (pair.i.is_re() && pair.j.is_re()) return 0.0;
@@ -420,11 +421,54 @@ int populate_supercell() {
                supercell.push_back(temp);
             }
 
-   std::cout
-      << "atoms in super cell: " << supercell.size() << "\n";
+   std::cout << "atoms in super cell: " << supercell.size() << "\n";
+
+   array_to_rasmol(supercell, "supercell");
+
+   return EXIT_SUCCESS;
+}
+
+int populate_supercell_2D() {
+
+   std::cout << "\ncreating and populating super cell...\n";
+
+   int global_id_counter = 0;
+
+   /* loop through dimensions */
+   for (int i=0; i<3; i++)
+      for (int j=0; j<3; j++)
+
+            /* loop through atoms in unitcell */
+            for (int atom=0; atom<unitcell.size(); atom++) {
+
+               atom_t temp;
+               vec_t uc;
+               uc.x = i;
+               uc.y = j;
+               uc.z = 0;
+
+               temp.aid = unitcell[atom].aid;
+               temp.element = unitcell[atom].element;
+               temp.mat = unitcell[atom].mat;
+
+               /* replicate unitcell atoms */
+               temp.pos = unitcell[atom].pos + (uc * mat.ucd);
+
+               /* label unitcell coordinates */
+               temp.uc = uc;
+
+               /* dummy values for unneeded struct elements */
+               temp.hcat = 0;
+               temp.gid = global_id_counter;
+               global_id_counter ++;
+
+               /* place atom in array */
+               supercell.push_back(temp);
+            }
+
+   std::cout << "atoms in super cell: " << supercell.size() << "\n";
 
 //   array_to_rasmol(supercell, "supercell");
 
    return EXIT_SUCCESS;
 }
-
