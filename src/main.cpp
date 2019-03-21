@@ -479,7 +479,7 @@ int generate_domain_wall_system() {
                      int ucy = j + uc_interactions[p].ucd.y;
                      int ucz = k + uc_interactions[p].ucd.z;
 
-                     /* if any of these conditions satisfied
+                     /* if any of these conditions are met
                       * then atom is out of bounds */
 
                      if (ucx < 0 || ucx >= sd.x ||
@@ -488,7 +488,6 @@ int generate_domain_wall_system() {
 
                         /* periodic boundaries conditions */
                         if ( ucx < 0 ) {
-                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucx += sd.x;
                            tmp.ucd.x = -1;
 
@@ -513,12 +512,12 @@ int generate_domain_wall_system() {
                         }
 
                         if ( ucz < 0 ) {
+                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucz += sd.z;
                            tmp.ucd.z = -1;
                         }
 
                         if ( ucx >= sd.x ) {
-                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucx -= sd.x;
                            tmp.ucd.x = 1;
                         }
@@ -529,6 +528,7 @@ int generate_domain_wall_system() {
                         }
 
                         if ( ucz >= sd.z ) {
+                           tmp.exchange *= -1; /* antiferro periodic boundaries */
                            ucz -= sd.z;
                            tmp.ucd.z = 1;
                         }
