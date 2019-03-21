@@ -89,6 +89,15 @@ int get_unitcell_dimensions() {
             std::cout << "no titanium concentration specified. exiting.\n";
             exit(EXIT_FAILURE);
          }
+
+         break;
+
+      case 8 : /* generic */
+
+         mat.ucd.x = 3;
+         mat.ucd.y = 3;
+         mat.ucd.z = 3;
+
    }
 
    std::cout << std::endl;

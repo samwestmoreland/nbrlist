@@ -126,6 +126,7 @@ class material_t {
          else if (name == "smco12") return 5;
          else if (name == "interface") return 6;
          else if (name == "ndfeti12") return 7;
+         else if (name == "generic") return 8;
          else return 0;
       }
 };

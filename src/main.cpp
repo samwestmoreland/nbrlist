@@ -322,7 +322,7 @@ int generate_domain_wall_system() {
                sys_coord.z = tmp.pos.z / double(mat.ucd.z) / double(sd.z);
 
                /* we want to split the system into two halves */
-               if (uc.x > (sd.x-1)/2) {
+               if (uc.z > (sd.z-1)/2) {
                   tmp.mat += elements.size();
                }
 
@@ -334,6 +334,13 @@ int generate_domain_wall_system() {
                   << tmp.mat << "\t"
                   << 0 << "\t"
                   << tmp.hcat << "\n";
+
+               if (tmp.mat == 0) sysmol << "H";
+               else sysmol << "Ag";
+
+               sysmol << "\t" << tmp.pos.x
+                      << "\t" << tmp.pos.y
+                      << "\t" << tmp.pos.z << "\n";
 
                dwsystem[i][j][k].push_back(tmp);
             }

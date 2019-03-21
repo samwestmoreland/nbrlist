@@ -52,7 +52,8 @@ int calculate_interactions() {
                pair.ucd = pair.j.uc - pair.i.uc;
 
                /* calculate exchange energy */
-               pair.exchange = calculate_jij(pair);
+               if (sys.nn == true) pair.exchange = calculate_jij_nn(pair);
+               else pair.exchange = calculate_jij_range_dependent(pair);
 
                /* put interaction into array */
                if (fabs(pair.exchange) > 1e-30) {
@@ -203,7 +204,7 @@ int calculate_interactions() {
 }
 
 /* calculate exchange energy */
-double calculate_jij(pair_t pair) {
+double calculate_jij_range_dependent(pair_t pair) {
 
    switch (mat.id()) {
 
@@ -379,6 +380,21 @@ double calculate_jij(pair_t pair) {
                exit(EXIT_FAILURE);
 
    } /* end of switch */
+
+} /* end of calculate_jij function */
+
+double calculate_jij_nn(pair_t pair) {
+
+   if (pair.i.is_tm() && pair.j.is_tm())
+      return sys.tt_constant;
+
+   else if (pair.i.is_re() && pair.j.is_re())
+      return sys.rt_constant;
+
+   else {
+      std::cout << "I'm not equipped to deal with exchange constants between different elements :(\n";
+      return 0;
+   }
 
 } /* end of calculate_jij function */
 
