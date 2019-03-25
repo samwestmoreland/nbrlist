@@ -8,8 +8,9 @@ std::vector<atom_t> unitcell;
 std::vector<atom_t> supercell;
 std::vector<std::vector<std::vector<std::vector<atom_t> > > > dwsystem;
 
-/* unit cell interaction array */
+/* interaction arrays */
 std::vector<pair_t> uc_interactions;
+std::vector<pair_t> sys_interactions;
 
 /* element arrays */
 std::vector<std::string> elements;

@@ -241,12 +241,6 @@ int generate_domain_wall_system() {
 
    std::cout << "initialising domain wall system\n\n";
 
-   /* determine dimensions of system in unitcells */
-   /* for long system in z
-      x = 2 nm
-      y = 2 nm
-      z = 12 nm */
-
    std::ofstream dwucf ("domainwall.ucf");
 
    std::cout << "dimensions of domain wall system: ";
@@ -286,6 +280,9 @@ int generate_domain_wall_system() {
 
    if (sys.centrepin == false) {
 
+      int count0 = 0;
+      int count1 = 0;
+
    /* resize vectors */
    dwsystem.resize(sd.x);
    for (int i=0; i<sd.x; i++) {
@@ -313,7 +310,7 @@ int generate_domain_wall_system() {
                tmp.pos = unitcell[atom].pos + uc * mat.ucd;
                gid_counter ++;
 
-               tmp.hcat = i;
+               tmp.hcat = k;
 
                /* calculate atom coordinates within large system */
                vec_t sys_coord;
@@ -328,15 +325,21 @@ int generate_domain_wall_system() {
 
                /* output to unit cell file */
                dwucf << tmp.gid << "\t"
-                  << sys_coord.x << "\t"
-                  << sys_coord.y << "\t"
-                  << sys_coord.z << "\t"
-                  << tmp.mat << "\t"
-                  << 0 << "\t"
-                  << tmp.hcat << "\n";
+                     << sys_coord.x << "\t"
+                     << sys_coord.y << "\t"
+                     << sys_coord.z << "\t"
+                     << tmp.mat << "\t"
+                     << 0 << "\t"
+                     << tmp.hcat << "\n";
 
-               if (tmp.mat == 0) sysmol << "H";
-               else sysmol << "Ag";
+               if (tmp.mat == 0) {
+                  sysmol << "H";
+                  count0 ++;
+               }
+               else {
+                  sysmol << "Ag";
+                  count1 ++;
+               }
 
                sysmol << "\t" << tmp.pos.x
                       << "\t" << tmp.pos.y
@@ -541,7 +544,8 @@ int generate_domain_wall_system() {
                      /* else it is within bounds so simply extract j.gid */
                      else tmp.j.gid = dwsystem[ucx][ucy][ucz][uc_interactions[p].j.aid].gid;
 
-                     uc_interactions.push_back(tmp);
+                     /* store interactions in system interactions array */
+                     sys_interactions.push_back(tmp);
 
                      /* increment interaction id */
                      int_counter ++;
@@ -555,20 +559,20 @@ int generate_domain_wall_system() {
 
    // std::cout << "number of interactions in system: " << interactions.size() << "\n\n";
 
-   dwucf << uc_interactions.size() << "\tisotropic\n";
+   dwucf << sys_interactions.size() << "\tisotropic\n";
 
    // output interaction info to file
-   for (int i=0; i<uc_interactions.size(); i++)
+   for (int i=0; i<sys_interactions.size(); i++)
 
-      dwucf << uc_interactions[i].iid << "\t"
-            << uc_interactions[i].i.gid << "\t"
-            << uc_interactions[i].j.gid << "\t"
-            << uc_interactions[i].ucd.x << "\t"
-            << uc_interactions[i].ucd.y << "\t"
-            << uc_interactions[i].ucd.z << "\t"
-            << uc_interactions[i].exchange << "\n";
+      dwucf << sys_interactions[i].iid << "\t"
+            << sys_interactions[i].i.gid << "\t"
+            << sys_interactions[i].j.gid << "\t"
+            << sys_interactions[i].ucd.x << "\t"
+            << sys_interactions[i].ucd.y << "\t"
+            << sys_interactions[i].ucd.z << "\t"
+            << sys_interactions[i].exchange << "\n";
 
-   std::cout << "number of interactions found: " << uc_interactions.size() << std::endl;
+   std::cout << "number of interactions found: " << sys_interactions.size() << std::endl;
    std::cout << "interaction data output to file 'domainwall.ucf'\n";
 
    dwucf.close();
